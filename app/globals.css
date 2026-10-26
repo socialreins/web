@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  --color-field: #dfe6dc;
+  --color-paper: #f7f9f3;
+  --color-pine: #17352a;
+  --color-pine-soft: #3d5a4d;
+  --color-saddle: #7b3f1e;
+  --color-brass: #c99a2e;
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+}
+
+html { background: var(--color-field); color: var(--color-pine); }
+body { margin: 0; font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.6; }
+:focus-visible { outline: 3px solid var(--color-brass); outline-offset: 3px; }
+
+.waitlist { display: grid; gap: 0.5rem; max-width: 34rem; }
+.waitlist label { font-weight: 700; }
+.waitlist-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.waitlist input {
+  flex: 1 1 14rem; min-width: 0; font: inherit; padding: 0.8rem 1rem;
+  background: var(--color-paper); color: var(--color-pine);
+  border: 2px solid var(--color-pine); border-radius: 999px;
+}
+.waitlist input[aria-invalid] { border-color: var(--color-saddle); }
+.waitlist button {
+  font: inherit; font-weight: 700; padding: 0.8rem 1.4rem; cursor: pointer;
+  background: var(--color-pine); color: var(--color-paper);
+  border: 2px solid var(--color-pine); border-radius: 999px;
+}
+.waitlist button:hover { background: var(--color-saddle); border-color: var(--color-saddle); }
+.waitlist button:disabled { opacity: 0.7; cursor: progress; }
+.waitlist-note { margin: 0; color: var(--color-pine-soft); font-size: 0.95rem; }
+.waitlist-error { margin: 0; color: var(--color-saddle); font-weight: 700; font-size: 0.95rem; }
+.waitlist-done {
+  margin: 0; max-width: 34rem; padding: 1rem 1.25rem; font-weight: 700;
+  background: var(--color-paper); border-left: 6px solid var(--color-brass);
+}
+
+.rein { stroke-dasharray: 1; stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .rein { stroke-dashoffset: 1; animation: draw 1.4s cubic-bezier(.6,0,.2,1) forwards; }
+  .rein:nth-of-type(2) { animation-delay: .08s; }
+  .rein:nth-of-type(3) { animation-delay: .16s; }
+  .rein:nth-of-type(4) { animation-delay: .24s; }
+  .rein:nth-of-type(5) { animation-delay: .32s; }
+  .rein:nth-of-type(6) { animation-delay: .40s; }
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+#waitlist-message:focus { outline: none; }
+#waitlist-message:focus-visible { outline: 3px solid var(--color-brass); outline-offset: 3px; }
+.waitlist-empty { margin: 0; }
