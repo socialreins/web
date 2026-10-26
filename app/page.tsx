@@ -60,12 +60,12 @@ export default function Home() {
             Run it yourself, or let us run it
           </h2>
           <p className="mt-4 max-w-[38rem] text-lg text-field">
-            SocialReins is open source. Self-host it from GitHub today. If you would rather not run servers, join the
-            waitlist for the hosted version, a paid subscription coming later.
+            SocialReins is open source, and you will be able to self-host it from GitHub. If you would rather not run
+            servers, join the waitlist for the hosted version, a paid subscription coming later.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a href={repo} className="rounded-full bg-brass px-6 py-3 font-bold text-pine hover:bg-paper">
-              Self-host from GitHub
+              Follow on GitHub
             </a>
             <a href="#waitlist" className="rounded-full border-2 border-paper px-6 py-3 font-bold hover:bg-paper hover:text-pine">
               Join the waitlist
