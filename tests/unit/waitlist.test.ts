@@ -29,3 +29,22 @@ describe("joinWaitlist", () => {
     expect(await joinWaitlist("a@b.co")).toBe("error");
   });
 });
+
+describe("joinWaitlist timeout", () => {
+  it("aborts after 10 seconds and reports a timeout", async () => {
+    // AbortSignal.timeout uses Node's internal timers, which fake timers do not control.
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init: RequestInit) =>
+        new Promise((_, reject) => init.signal!.addEventListener("abort", () => reject(init.signal!.reason))),
+      ),
+    );
+    const pending = joinWaitlist("a@b.co");
+    controller.abort(new DOMException("timed out", "TimeoutError"));
+    expect(await pending).toBe("timeout");
+    expect(timeout).toHaveBeenCalledWith(10_000);
+    timeout.mockRestore();
+  });
+});

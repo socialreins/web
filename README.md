@@ -6,7 +6,7 @@ The product itself lives at [socialreins/socialreins](https://github.com/socialr
 
 ## Develop
 
-Requires Node 24 or newer.
+Requires Node 24 (the version CI and the Dockerfile use).
 
 ```
 cp .env.example .env.local   # set NEXT_PUBLIC_API_URL
