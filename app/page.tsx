@@ -9,7 +9,7 @@ const features = [
     body: "Send a post to Facebook Pages, Instagram, Threads, LinkedIn, Bluesky and X from one place, now or at a time you pick.",
   },
   { title: "Take posts down everywhere", body: "Remove a published post from every platform it went out on." },
-  { title: "Sets and lists", body: "Group your accounts into sets and lists." },
+  { title: "Sets and lists", body: "Group accounts into sets, and posts into ordered lists." },
   { title: "Built for AI agents", body: "A REST API and an MCP server let your AI agents post for you." },
 ];
 
