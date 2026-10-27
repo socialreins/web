@@ -4,6 +4,7 @@ test("landing page renders and the waitlist form joins", async ({ page }) => {
   await page.route("**/v1/waitlist", (route) => route.fulfill({ status: 200, body: "{}" }));
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: "SocialReins", exact: true })).toHaveAttribute("href", "/");
   const menu = page.locator("details").filter({ hasText: "Follow on GitHub" });
   await menu.getByText("Follow on GitHub").click();
   await expect(menu.getByRole("link", { name: /socialreins\/web/ })).toHaveAttribute(
