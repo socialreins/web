@@ -1,4 +1,5 @@
 import { GitHubRepos } from "@/components/github-repos";
+import { LogoMark } from "@/components/logo";
 import { Reins } from "@/components/reins";
 import { WaitlistForm } from "@/components/waitlist-form";
 
@@ -27,9 +28,13 @@ export default function Home() {
   return (
     <div className="mx-auto max-w-6xl px-5 sm:px-8">
       <header className="flex items-center justify-between py-6">
-        <span className="font-display text-xl font-extrabold tracking-tight">
+        <a
+          href="/"
+          className="flex items-center gap-2.5 font-display text-xl font-extrabold tracking-tight"
+        >
+          <LogoMark className="size-9" />
           SocialReins
-        </span>
+        </a>
         <GitHubRepos
           label="GitHub"
           summaryClassName="font-bold underline decoration-brass decoration-2 underline-offset-4 hover:text-saddle"
@@ -108,7 +113,10 @@ export default function Home() {
       </main>
 
       <footer className="flex flex-wrap items-center justify-between gap-4 py-10 text-pine-soft">
-        <span>Built by Bytech</span>
+        <span className="flex items-center gap-2">
+          <LogoMark className="size-6" />
+          Built by Bytech
+        </span>
         <a
           href={repo}
           className="font-bold underline decoration-brass decoration-2 underline-offset-4 hover:text-saddle"
