@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("landing page renders and the waitlist form joins", async ({ page }) => {
+  await page.route("**/auth/me", (route) => route.fulfill({ status: 401, json: { error: "unauthorized" } }));
   await page.route("**/v1/waitlist", (route) => route.fulfill({ status: 200, body: "{}" }));
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
