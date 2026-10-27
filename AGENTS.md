@@ -1,6 +1,6 @@
 # AGENTS.md: socialreins/web
 
-Next.js frontend for SocialReins (socialreins.com): the marketing landing page with the waitlist now, the logged-in app later, in one codebase. The backend is the Rust API in github.com/socialreins/brain.
+Next.js frontend for SocialReins (socialreins.com) and the main repo of the project (its README is the entry point for users): the marketing landing page with the waitlist now, the logged-in app later, in one codebase. The backend is the Rust API in github.com/socialreins/brain.
 
 ## Rules
 - No em dashes in any text: copy, code comments, docs, commit messages, PR text. Use a comma, colon, full stop or two sentences. En dashes in numeric ranges are fine.
@@ -23,7 +23,7 @@ npm run build && npm run test:e2e   # Playwright serves the production build on 
 
 ## Layout
 - `app/page.tsx` landing page; `app/app/` the logged-in app (placeholder for now).
-- `components/` UI pieces; `components/waitlist-form.tsx` is the only client component.
+- `components/` UI pieces; `components/waitlist-form.tsx` is the only client component. `components/github-repos.tsx` is the GitHub menu with star counts (`lib/github.ts`, cached hourly with `use cache`).
 - `lib/waitlist.ts` calls `POST {NEXT_PUBLIC_API_URL}/v1/waitlist`. 200 means joined (a duplicate also returns 200), 422 invalid email, 429 rate limited.
 - `NEXT_PUBLIC_API_URL` is inlined at build time. The Dockerfile refuses to build without it; Railway passes it as a build arg.
 - Tests: `tests/unit` (vitest), `tests/e2e` (Playwright).
