@@ -2,9 +2,12 @@ import Link from "next/link";
 import { GitHubRepos } from "@/components/github-repos";
 import { LogoMark } from "@/components/logo";
 import { Reins } from "@/components/reins";
+import { SessionLink } from "@/components/session-link";
 import { WaitlistForm } from "@/components/waitlist-form";
 
 const repo = "https://github.com/socialreins/web";
+
+const headerLink = "font-bold underline decoration-brass decoration-2 underline-offset-4 hover:text-saddle";
 
 const features = [
   {
@@ -36,10 +39,10 @@ export default function Home() {
           <LogoMark className="size-9" />
           SocialReins
         </Link>
-        <GitHubRepos
-          label="GitHub"
-          summaryClassName="font-bold underline decoration-brass decoration-2 underline-offset-4 hover:text-saddle"
-        />
+        <nav aria-label="Site" className="flex items-center gap-6">
+          <GitHubRepos label="GitHub" summaryClassName={headerLink} />
+          <SessionLink className={headerLink} />
+        </nav>
       </header>
 
       <main>

@@ -48,6 +48,6 @@ body { margin: 0; font-family: var(--font-body); font-size: 1.0625rem; line-heig
   .rein:nth-of-type(6) { animation-delay: .40s; }
 }
 @keyframes draw { to { stroke-dashoffset: 0; } }
-#waitlist-message:focus { outline: none; }
-#waitlist-message:focus-visible { outline: 3px solid var(--color-brass); outline-offset: 3px; }
+#waitlist-message:focus, #login-done:focus { outline: none; }
+#waitlist-message:focus-visible, #login-done:focus-visible { outline: 3px solid var(--color-brass); outline-offset: 3px; }
 .waitlist-empty { margin: 0; }

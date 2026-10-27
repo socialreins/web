@@ -23,7 +23,9 @@ npm run build && npm run test:e2e   # Playwright serves the production build on 
 
 ## Layout
 - `app/page.tsx` landing page; `app/app/` the logged-in app (placeholder for now).
-- `components/` UI pieces; `components/waitlist-form.tsx` is the only client component. `components/github-repos.tsx` is the GitHub menu with star counts (`lib/github.ts`, cached hourly with `use cache`).
+- `app/login/` sign in or sign up by magic link; `app/app/` checks the session client-side.
+- `components/` UI pieces. Client components: `waitlist-form.tsx`, `login-form.tsx`, `account.tsx`, `session-link.tsx`. `components/github-repos.tsx` is the GitHub menu with star counts (`lib/github.ts`, cached hourly with `use cache`).
 - `lib/waitlist.ts` calls `POST {NEXT_PUBLIC_API_URL}/v1/waitlist`. 200 means joined (a duplicate also returns 200), 422 invalid email, 429 rate limited.
+- `lib/auth.ts` calls brain's `/auth/link`, `/auth/me` and `/auth/logout` with `credentials: "include"`. The session cookie is HttpOnly on the API host, so Next server code cannot see it: auth checks run in the browser.
 - `NEXT_PUBLIC_API_URL` is inlined at build time. The Dockerfile refuses to build without it; Railway passes it as a build arg.
 - Tests: `tests/unit` (vitest), `tests/e2e` (Playwright).
