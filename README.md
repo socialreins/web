@@ -25,7 +25,7 @@ npm run build && npm run test:e2e   # Playwright against the production build
 
 ## Deploy
 
-`Dockerfile` builds a standalone Next.js server; `railway.json` deploys it on Railway. Pass `NEXT_PUBLIC_API_URL` as a build arg (production: `https://api.socialreins.com`).
+`Dockerfile` builds a standalone Next.js server; `railway.json` deploys it on Railway. Pass `NEXT_PUBLIC_API_URL` as a build arg (production: `https://brain.socialreins.com`).
 
 ## License
 
