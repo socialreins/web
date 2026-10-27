@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 env:
-  NEXT_PUBLIC_API_URL: https://api.socialreins.com
+  NEXT_PUBLIC_API_URL: https://brain.socialreins.com
 
 jobs:
   check:
