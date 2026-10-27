@@ -1,8 +1,28 @@
-# SocialReins web
+# SocialReins
 
-The website and, later, the web app for [SocialReins](https://socialreins.com), an open-source social media manager. Publish and schedule to Facebook Pages, Instagram, Threads, LinkedIn, Bluesky and X from one place.
+SocialReins is an open-source social media manager.
 
-The product itself lives at [socialreins/socialreins](https://github.com/socialreins/socialreins). The API behind this site is [socialreins/brain](https://github.com/socialreins/brain).
+- Publish and schedule posts to Facebook Pages, Instagram, Threads, LinkedIn, Bluesky and X.
+- Take down published posts.
+- Group accounts into sets, and posts into ordered lists.
+- Drive it all from a REST API or an MCP server.
+
+Self-host it, or join the waitlist for the hosted version at [socialreins.com](https://socialreins.com).
+
+This repo is the starting point: the website and the app, built with Next.js. The API server is [socialreins/brain](https://github.com/socialreins/brain), written in Rust.
+
+| Repo | What it is |
+|---|---|
+| [web](https://github.com/socialreins/web) | This repo: the website, the app and the docs |
+| [brain](https://github.com/socialreins/brain) | The API server, written in Rust |
+
+## Self-host
+
+Coming soon. The quick start lands here once brain and web ship the full app.
+
+## Contributing
+
+See [CONTRIBUTING.md](https://github.com/socialreins/.github/blob/main/CONTRIBUTING.md) and the [Code of Conduct](https://github.com/socialreins/.github/blob/main/CODE_OF_CONDUCT.md). To report a vulnerability, follow [SECURITY.md](https://github.com/socialreins/.github/blob/main/SECURITY.md).
 
 ## Develop
 
