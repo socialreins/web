@@ -19,8 +19,12 @@ const linkErrors: Record<string, string> = {
 };
 const unknownLinkError = "That sign-in link didn't work. Ask for a new one below.";
 
-export function LoginForm() {
-  const linkError = useSearchParams().get("error");
+// Reads ?error= on the client; the page shows <LoginForm linkError={null} /> as its server-rendered fallback.
+export function LoginFormWithError() {
+  return <LoginForm linkError={useSearchParams().get("error")} />;
+}
+
+export function LoginForm({ linkError }: { linkError: string | null }) {
   const [status, setStatus] = useState<LinkResult | "idle" | "sending">("idle");
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -68,7 +72,7 @@ export function LoginForm() {
     <form onSubmit={onSubmit} className="waitlist">
       {linkError !== null && !submitted && (
         <p role="alert" className="waitlist-error">
-          {linkErrors[linkError] ?? unknownLinkError}
+          {Object.hasOwn(linkErrors, linkError) ? linkErrors[linkError] : unknownLinkError}
         </p>
       )}
       <label htmlFor="login-email">Email</label>

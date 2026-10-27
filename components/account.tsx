@@ -9,6 +9,7 @@ export function Account() {
   const router = useRouter();
   const [me, setMe] = useState<MeResult | null>(null);
   const [signOutFailed, setSignOutFailed] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     getMe().then((r) => {
@@ -26,10 +27,14 @@ export function Account() {
       </p>
       <button
         type="button"
-        className="font-bold underline decoration-brass decoration-2 underline-offset-4 hover:text-saddle"
+        disabled={signingOut}
+        className="font-bold underline disabled:cursor-progress disabled:opacity-70 decoration-brass decoration-2 underline-offset-4 hover:text-saddle"
         onClick={async () => {
-          if (await signOut()) router.push("/");
-          else setSignOutFailed(true);
+          setSigningOut(true);
+          setSignOutFailed(false);
+          if (await signOut()) return router.push("/");
+          setSignOutFailed(true);
+          setSigningOut(false);
         }}
       >
         Sign out

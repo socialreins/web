@@ -27,6 +27,19 @@ test("login explains rate limits and bad links", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveText(/Too many attempts/);
 });
 
+test("login shows a generic message for an unknown or prototype-named error", async ({ page }) => {
+  for (const error of ["__proto__", "constructor", "something_new"]) {
+    await page.goto(`/login?error=${error}`);
+    await expect(page.getByText("That sign-in link didn't work. Ask for a new one below.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeVisible();
+  }
+});
+
+test("login form is in the server-rendered HTML", async ({ request }) => {
+  const html = await (await request.get("/login")).text();
+  expect(html).toContain("Email me a sign-in link");
+});
+
 test("app shows the signed-in user and signs out", async ({ page }) => {
   await page.route("**/auth/me", (route) => route.fulfill({ json: user }));
   await page.route("**/auth/logout", (route) => route.fulfill({ status: 204 }));

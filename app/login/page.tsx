@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { LoginForm } from "@/components/login-form";
+import { LoginForm, LoginFormWithError } from "@/components/login-form";
 import { LogoMark } from "@/components/logo";
 
 export const metadata: Metadata = { title: "Sign in to SocialReins" };
@@ -17,9 +17,9 @@ export default function Login() {
       <p className="text-pine-soft">
         Enter your email and we will send you a sign-in link.
       </p>
-      {/* useSearchParams reads ?error= on the client; Suspense keeps the rest of the page prerendered. */}
-      <Suspense>
-        <LoginForm />
+      {/* ?error= is only known in the browser, so the prerendered HTML carries the same form without it. */}
+      <Suspense fallback={<LoginForm linkError={null} />}>
+        <LoginFormWithError />
       </Suspense>
     </main>
   );
