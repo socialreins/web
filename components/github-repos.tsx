@@ -1,6 +1,15 @@
 import { cacheLife } from "next/cache";
 import { fetchStars, formatStars, repos } from "@/lib/github";
 
+async function getStars() {
+  "use cache";
+  const stars = await Promise.all(repos.map((r) => fetchStars(r.name)));
+  // A failed fetch (GitHub rate limit) retries in minutes instead of hiding the counts for an hour.
+  if (stars.includes(null)) cacheLife("minutes");
+  else cacheLife("hours");
+  return stars;
+}
+
 // A GitHub button that opens a list of the repos with their star counts. Native <details>, so no client JS.
 export async function GitHubRepos({
   label,
@@ -11,9 +20,7 @@ export async function GitHubRepos({
   summaryClassName: string;
   align?: "left" | "right";
 }) {
-  "use cache";
-  cacheLife("hours");
-  const stars = await Promise.all(repos.map((r) => fetchStars(r.name)));
+  const stars = await getStars();
 
   return (
     <details className="group relative inline-block">
@@ -51,7 +58,9 @@ export async function GitHubRepos({
               {stars[i] !== null && (
                 <span className="shrink-0 font-bold">
                   <span aria-hidden="true">★ {formatStars(stars[i])}</span>
-                  <span className="sr-only">{stars[i]} stars</span>
+                  <span className="sr-only">
+                    {stars[i] === 1 ? "1 star" : `${stars[i]} stars`}
+                  </span>
                 </span>
               )}
             </a>

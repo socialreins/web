@@ -10,6 +10,7 @@ test("landing page renders and the waitlist form joins", async ({ page }) => {
     "href",
     "https://github.com/socialreins/web",
   );
+  await expect(menu.getByRole("link", { name: /socialreins\/web/ })).toContainText("main");
   await expect(menu.getByRole("link", { name: /socialreins\/brain/ })).toHaveAttribute(
     "href",
     "https://github.com/socialreins/brain",
