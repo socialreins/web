@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GitHubRepos } from "@/components/github-repos";
 import { LogoMark } from "@/components/logo";
 import { Reins } from "@/components/reins";
@@ -28,13 +29,13 @@ export default function Home() {
   return (
     <div className="mx-auto max-w-6xl px-5 sm:px-8">
       <header className="flex items-center justify-between py-6">
-        <a
+        <Link
           href="/"
           className="flex items-center gap-2.5 font-display text-xl font-extrabold tracking-tight"
         >
           <LogoMark className="size-9" />
           SocialReins
-        </a>
+        </Link>
         <GitHubRepos
           label="GitHub"
           summaryClassName="font-bold underline decoration-brass decoration-2 underline-offset-4 hover:text-saddle"
