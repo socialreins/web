@@ -1,7 +1,8 @@
 import { apiUrl } from "@/lib/waitlist";
+import { createCredential, type CreationOptionsJSON } from "@/lib/webauthn";
 
 export type LinkResult = "sent" | "invalid" | "rate_limited" | "timeout" | "error";
-export type User = { id: string; email: string; name: string; username: string | null };
+export type User = { id: string; email: string; name: string; username: string | null; has_password: boolean };
 export type MeResult = { user: User } | "signed_out" | "error";
 
 const TIMEOUT_MS = 10_000;
@@ -44,5 +45,84 @@ export async function signOut(): Promise<boolean> {
     return (await fetch(`${apiUrl}/auth/logout`, opts({ method: "POST" }))).ok;
   } catch {
     return false;
+  }
+}
+
+// Error codes brain sends for the security endpoints, plus what the browser side can add.
+const codes = [
+  "reauth_required",
+  "invalid_current_password",
+  "invalid_password",
+  "invalid_name",
+  "invalid_challenge",
+  "invalid_passkey",
+  "passkey_exists",
+  "not_found",
+] as const;
+export type Failure = (typeof codes)[number] | "rate_limited" | "signed_out" | "timeout" | "error";
+export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };
+export type AddResult = Passkey | Failure | "cancelled" | "unsupported";
+
+async function failure(res: Response): Promise<Failure> {
+  if (res.status === 401) return "signed_out";
+  if (res.status === 429) return "rate_limited";
+  const code: unknown = (await res.json().catch(() => null))?.error;
+  return codes.find((c) => c === code) ?? "error";
+}
+
+const caught = (e: unknown): Failure =>
+  e instanceof DOMException && e.name === "TimeoutError" ? "timeout" : "error";
+
+const send = (method: string, body: unknown) =>
+  opts({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+// Sets the first password (needs a recent sign-in) or changes it (needs the current one).
+export async function setPassword(password: string, currentPassword?: string): Promise<"ok" | Failure> {
+  try {
+    const res = await fetch(`${apiUrl}/auth/password`, send("PUT", { password, current_password: currentPassword }));
+    return res.ok ? "ok" : await failure(res);
+  } catch (e) {
+    return caught(e);
+  }
+}
+
+export async function listPasskeys(): Promise<Passkey[] | Failure> {
+  try {
+    const res = await fetch(`${apiUrl}/auth/passkeys`, opts());
+    return res.ok ? ((await res.json()) as Passkey[]) : await failure(res);
+  } catch (e) {
+    return caught(e);
+  }
+}
+
+export async function removePasskey(id: string): Promise<"ok" | Failure> {
+  try {
+    const res = await fetch(`${apiUrl}/auth/passkeys/${encodeURIComponent(id)}`, opts({ method: "DELETE" }));
+    return res.ok ? "ok" : await failure(res);
+  } catch (e) {
+    return caught(e);
+  }
+}
+
+// Start, the device ceremony, then finish. A blank name becomes "Passkey" on the server.
+export async function addPasskey(name: string): Promise<AddResult> {
+  if (typeof window === "undefined" || !window.PublicKeyCredential) return "unsupported";
+  try {
+    const start = await fetch(`${apiUrl}/auth/passkeys/register/start`, send("POST", {}));
+    if (!start.ok) return await failure(start);
+    const { challenge_id, options } = (await start.json()) as { challenge_id: string; options: CreationOptionsJSON };
+    let credential;
+    try {
+      credential = await createCredential(options);
+    } catch (e) {
+      // NotAllowedError: cancelled or timed out. InvalidStateError: this device already holds one.
+      if (e instanceof DOMException && e.name === "NotAllowedError") return "cancelled";
+      if (e instanceof DOMException && e.name === "InvalidStateError") return "passkey_exists";
+      return "error";
+    }
+    const finish = await fetch(`${apiUrl}/auth/passkeys/register/finish`, send("POST", { challenge_id, credential, name }));
+    return finish.ok ? ((await finish.json()) as Passkey) : await failure(finish);
+  } catch (e) {
+    return caught(e);
   }
 }
