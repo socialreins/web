@@ -1,7 +1,13 @@
 export type WaitlistResult = "joined" | "invalid" | "rate_limited" | "timeout" | "error";
 
-// NEXT_PUBLIC_* is inlined at build time; the Dockerfile refuses to build without it.
-export const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
+declare global {
+  interface Window {
+    __BRAIN_URL?: string;
+  }
+}
+
+// Set by /config.js from BRAIN_URL at run time; the root layout loads it before any app code runs.
+export const apiUrl = (typeof window === "undefined" ? undefined : window.__BRAIN_URL) ?? "http://localhost:8080";
 
 const TIMEOUT_MS = 10_000;
 

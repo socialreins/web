@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import Script from "next/script";
 import { Atkinson_Hyperlegible_Next, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 
@@ -18,7 +19,10 @@ export const viewport: Viewport = { themeColor: "#121212" };
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Script src="/config.js" strategy="beforeInteractive" />
+        {children}
+      </body>
     </html>
   );
 }
