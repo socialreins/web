@@ -36,24 +36,24 @@ export async function GitHubRepos({
         </span>
       </summary>
       <ul
-        className={`absolute ${align === "left" ? "left-0" : "right-0"} z-10 mt-2 grid w-72 gap-1 rounded-2xl border-2 border-pine bg-paper p-2 text-left text-pine shadow-lg`}
+        className={`absolute ${align === "left" ? "left-0" : "right-0"} z-10 mt-2 grid w-72 gap-1 rounded-2xl border-2 border-ink bg-paper p-2 text-left text-ink shadow-lg`}
       >
         {repos.map((r, i) => (
           <li key={r.name}>
             <a
               href={r.href}
-              className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 hover:bg-field"
+              className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 hover:bg-canvas"
             >
               <span>
                 <span className="font-display font-bold">
                   socialreins/{r.name}
                 </span>
                 {r.main && (
-                  <span className="ml-2 rounded-full bg-brass px-2 py-0.5 text-xs font-bold text-pine">
+                  <span className="ml-2 rounded-full bg-signal px-2 py-0.5 text-xs font-bold text-ink">
                     main
                   </span>
                 )}
-                <span className="block text-sm text-pine-soft">{r.blurb}</span>
+                <span className="block text-sm text-ink-soft">{r.blurb}</span>
               </span>
               {stars[i] !== null && (
                 <span className="shrink-0 font-bold">

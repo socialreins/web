@@ -1,41 +1,41 @@
 @import "tailwindcss";
 
 @theme {
-  --color-field: #dfe6dc;
-  --color-paper: #f7f9f3;
-  --color-pine: #17352a;
-  --color-pine-soft: #3d5a4d;
-  --color-saddle: #7b3f1e;
-  --color-brass: #c99a2e;
+  --color-canvas: #faf8f6;
+  --color-paper: #ffffff;
+  --color-ink: #121212;
+  --color-ink-soft: #57534e;
+  --color-signal-deep: #c2330a;
+  --color-signal: #ff5b22;
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
 }
 
-html { background: var(--color-field); color: var(--color-pine); }
+html { background: var(--color-canvas); color: var(--color-ink); }
 body { margin: 0; font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.6; }
-:focus-visible { outline: 3px solid var(--color-brass); outline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--color-signal-deep); outline-offset: 3px; }
 
 .waitlist { display: grid; gap: 0.5rem; max-width: 34rem; }
 .waitlist label { font-weight: 700; }
 .waitlist-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .waitlist input {
   flex: 1 1 14rem; min-width: 0; font: inherit; padding: 0.8rem 1rem;
-  background: var(--color-paper); color: var(--color-pine);
-  border: 2px solid var(--color-pine); border-radius: 999px;
+  background: var(--color-paper); color: var(--color-ink);
+  border: 2px solid var(--color-ink); border-radius: 999px;
 }
-.waitlist input[aria-invalid] { border-color: var(--color-saddle); }
+.waitlist input[aria-invalid] { border-color: var(--color-signal-deep); }
 .waitlist button {
   font: inherit; font-weight: 700; padding: 0.8rem 1.4rem; cursor: pointer;
-  background: var(--color-pine); color: var(--color-paper);
-  border: 2px solid var(--color-pine); border-radius: 999px;
+  background: var(--color-ink); color: var(--color-paper);
+  border: 2px solid var(--color-ink); border-radius: 999px;
 }
-.waitlist button:hover { background: var(--color-saddle); border-color: var(--color-saddle); }
+.waitlist button:hover { background: var(--color-signal-deep); border-color: var(--color-signal-deep); }
 .waitlist button:disabled { opacity: 0.7; cursor: progress; }
-.waitlist-note { margin: 0; color: var(--color-pine-soft); font-size: 0.95rem; }
-.waitlist-error { margin: 0; color: var(--color-saddle); font-weight: 700; font-size: 0.95rem; }
+.waitlist-note { margin: 0; color: var(--color-ink-soft); font-size: 0.95rem; }
+.waitlist-error { margin: 0; color: var(--color-signal-deep); font-weight: 700; font-size: 0.95rem; }
 .waitlist-done {
   margin: 0; max-width: 34rem; padding: 1rem 1.25rem; font-weight: 700;
-  background: var(--color-paper); border-left: 6px solid var(--color-brass);
+  background: var(--color-paper); border-left: 6px solid var(--color-signal);
 }
 
 .rein { stroke-dasharray: 1; stroke-dashoffset: 0; }
@@ -49,5 +49,5 @@ body { margin: 0; font-family: var(--font-body); font-size: 1.0625rem; line-heig
 }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 #waitlist-message:focus, #login-done:focus { outline: none; }
-#waitlist-message:focus-visible, #login-done:focus-visible { outline: 3px solid var(--color-brass); outline-offset: 3px; }
+#waitlist-message:focus-visible, #login-done:focus-visible { outline: 3px solid var(--color-signal-deep); outline-offset: 3px; }
 .waitlist-empty { margin: 0; }

@@ -55,7 +55,7 @@ export function LoginForm({ linkError }: { linkError: string | null }) {
         </p>
         <button
           type="button"
-          className="justify-self-start font-bold underline decoration-brass decoration-2 underline-offset-4 hover:text-saddle"
+          className="justify-self-start font-bold underline decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep"
           onClick={() => {
             flushSync(() => setStatus("idle"));
             inputRef.current?.focus();

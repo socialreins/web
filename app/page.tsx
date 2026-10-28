@@ -7,7 +7,7 @@ import { WaitlistForm } from "@/components/waitlist-form";
 
 const repo = "https://github.com/socialreins/web";
 
-const headerLink = "font-bold underline decoration-brass decoration-2 underline-offset-4 hover:text-saddle";
+const headerLink = "font-bold underline decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep";
 
 const features = [
   {
@@ -54,7 +54,7 @@ export default function Home() {
             <h1 className="font-display text-[clamp(2.6rem,7vw,4.9rem)] leading-[0.95] font-extrabold tracking-[-0.03em]">
               Every social account, one set of reins.
             </h1>
-            <p className="max-w-[34rem] text-lg text-pine-soft">
+            <p className="max-w-[34rem] text-lg text-ink-soft">
               SocialReins is an open-source social media manager. Publish and
               schedule to six platforms from one place, and pull a post back
               from all of them when you need to.
@@ -66,7 +66,7 @@ export default function Home() {
 
         <section
           aria-labelledby="features-title"
-          className="border-t-[3px] border-pine py-14 md:py-20"
+          className="border-t-[3px] border-ink py-14 md:py-20"
         >
           <h2
             id="features-title"
@@ -76,9 +76,9 @@ export default function Home() {
           </h2>
           <dl className="mt-8 grid gap-x-12 gap-y-8 md:grid-cols-2">
             {features.map((f) => (
-              <div key={f.title} className="border-l-4 border-saddle pl-5">
+              <div key={f.title} className="border-l-4 border-signal-deep pl-5">
                 <dt className="font-display text-xl font-bold">{f.title}</dt>
-                <dd className="mt-1 max-w-[30rem] text-pine-soft">{f.body}</dd>
+                <dd className="mt-1 max-w-[30rem] text-ink-soft">{f.body}</dd>
               </div>
             ))}
           </dl>
@@ -86,7 +86,7 @@ export default function Home() {
 
         <section
           aria-labelledby="oss-title"
-          className="-mx-5 bg-pine px-5 py-14 text-paper sm:-mx-8 sm:px-8 md:rounded-[2.5rem] md:px-14 md:py-16"
+          className="-mx-5 bg-ink px-5 py-14 text-paper sm:-mx-8 sm:px-8 md:rounded-[2.5rem] md:px-14 md:py-16"
         >
           <h2
             id="oss-title"
@@ -94,7 +94,7 @@ export default function Home() {
           >
             Run it yourself, or let us run it
           </h2>
-          <p className="mt-4 max-w-[38rem] text-lg text-field">
+          <p className="mt-4 max-w-[38rem] text-lg text-canvas">
             SocialReins is open source, and you will be able to self-host it
             from GitHub, starting at socialreins/web. If you would rather not
             run servers, join the waitlist for the hosted version, a paid
@@ -104,11 +104,11 @@ export default function Home() {
             <GitHubRepos
               label="Follow on GitHub"
               align="left"
-              summaryClassName="rounded-full bg-brass px-6 py-3 font-bold text-pine hover:bg-paper"
+              summaryClassName="rounded-full bg-signal px-6 py-3 font-bold text-ink hover:bg-paper"
             />
             <a
               href="#waitlist"
-              className="rounded-full border-2 border-paper px-6 py-3 font-bold hover:bg-paper hover:text-pine"
+              className="rounded-full border-2 border-paper px-6 py-3 font-bold hover:bg-paper hover:text-ink"
             >
               Join the waitlist
             </a>
@@ -116,14 +116,14 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="flex flex-wrap items-center justify-between gap-4 py-10 text-pine-soft">
+      <footer className="flex flex-wrap items-center justify-between gap-4 py-10 text-ink-soft">
         <span className="flex items-center gap-2">
           <LogoMark className="size-6" />
           Built by Bytech
         </span>
         <a
           href={repo}
-          className="font-bold underline decoration-brass decoration-2 underline-offset-4 hover:text-saddle"
+          className="font-bold underline decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep"
         >
           SocialReins on GitHub
         </a>
