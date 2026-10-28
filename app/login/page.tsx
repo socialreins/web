@@ -14,7 +14,7 @@ export default function Login() {
         SocialReins
       </Link>
       <h1 className="font-display text-4xl font-extrabold tracking-tight">Sign in or sign up</h1>
-      <p className="text-pine-soft">
+      <p className="text-ink-soft">
         Enter your email and we will send you a sign-in link.
       </p>
       {/* ?error= is only known in the browser, so the prerendered HTML carries the same form without it. */}

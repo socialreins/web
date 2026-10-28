@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     "Publish and schedule to Facebook Pages, Instagram, Threads, LinkedIn, Bluesky and X from one place. Self-hosting is coming. Join the waitlist for the hosted version.",
 };
 
-export const viewport: Viewport = { themeColor: "#17352a" };
+export const viewport: Viewport = { themeColor: "#121212" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

@@ -18,7 +18,7 @@ export function Account() {
     });
   }, [router]);
 
-  if (me === null || me === "signed_out") return <p className="text-pine-soft">Checking your sign-in...</p>;
+  if (me === null || me === "signed_out") return <p className="text-ink-soft">Checking your sign-in...</p>;
   if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -28,7 +28,7 @@ export function Account() {
       <button
         type="button"
         disabled={signingOut}
-        className="font-bold underline disabled:cursor-progress disabled:opacity-70 decoration-brass decoration-2 underline-offset-4 hover:text-saddle"
+        className="font-bold underline disabled:cursor-progress disabled:opacity-70 decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep"
         onClick={async () => {
           setSigningOut(true);
           setSignOutFailed(false);
