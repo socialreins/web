@@ -44,6 +44,8 @@ export function TeamSettings() {
 
 function TeamPage({ user }: { user: User }) {
   const [team, setTeam] = useState<Team>(user.current_team);
+  // brain drops the invitations a member sent once they are removed or can no longer invite.
+  const [version, setVersion] = useState(0);
   const mine = team.role;
   return (
     <>
@@ -51,8 +53,8 @@ function TeamPage({ user }: { user: User }) {
         You are {mine === "admin" ? "an" : "a"} {roleName[mine].toLowerCase()} of <strong>{team.name}</strong>.
       </p>
       {manages(mine) && <Rename team={team} onRenamed={setTeam} />}
-      <Members me={user} mine={mine} />
-      {manages(mine) && <Invitations />}
+      <Members me={user} mine={mine} onChanged={() => setVersion((v) => v + 1)} />
+      {manages(mine) && <Invitations version={version} />}
       {mine === "owner" && <DeleteTeam team={team} hasPassword={user.has_password} />}
     </>
   );
@@ -96,7 +98,7 @@ function Rename({ team, onRenamed }: { team: Team; onRenamed: (t: Team) => void 
   );
 }
 
-function Members({ me, mine }: { me: User; mine: Role }) {
+function Members({ me, mine, onChanged }: { me: User; mine: Role; onChanged: () => void }) {
   const router = useRouter();
   const [members, setMembers] = useState<Member[] | Failure | null>(null);
   const [roles, setRoles] = useState<Record<string, Role>>({});
@@ -123,6 +125,7 @@ function Members({ me, mine }: { me: User; mine: Role }) {
     const ok = await run("remove", () => removeMember(m.id), () => {
       if (leaving) return;
       setMembers((list) => (Array.isArray(list) ? list.filter((x) => x.id !== m.id) : list));
+      onChanged();
       return `${m.name} was removed from the team.`;
     });
     // Leaving changes the current team, so the app page shows the new one.
@@ -136,6 +139,7 @@ function Members({ me, mine }: { me: User; mine: Role }) {
     const role = roles[m.id] ?? m.role;
     run(`role:${m.id}`, () => setRole(m.id, role), (updated) => {
       setMembers((list) => (Array.isArray(list) ? list.map((x) => (x.id === m.id ? updated : x)) : list));
+      onChanged();
       return `${m.name} is now ${roleName[updated.role].toLowerCase()}.`;
     });
   }
@@ -171,7 +175,7 @@ function Members({ me, mine }: { me: User; mine: Role }) {
                 {editable && (
                   <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => changeRole(e, m)}>
                     <label htmlFor={`role-${m.id}`} className="font-bold">
-                      Role
+                      Role for {m.name}
                     </label>
                     <select
                       id={`role-${m.id}`}
@@ -185,7 +189,12 @@ function Members({ me, mine }: { me: User; mine: Role }) {
                         </option>
                       ))}
                     </select>
-                    <button type="submit" className={linkButton} disabled={busy !== null || (roles[m.id] ?? m.role) === m.role}>
+                    <button
+                      type="submit"
+                      className={linkButton}
+                      aria-label={`Change ${m.name}'s role`}
+                      disabled={busy !== null || (roles[m.id] ?? m.role) === m.role}
+                    >
                       {busy === `role:${m.id}` ? "Saving..." : "Change role"}
                     </button>
                   </form>
@@ -193,8 +202,15 @@ function Members({ me, mine }: { me: User; mine: Role }) {
                 {(editable || self) &&
                   (confirming === m.id ? (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                      <p>{self ? "Leave this team? You will lose access to it." : `Remove ${m.name} from the team?`}</p>
-                      <button ref={confirmRef} type="button" className={linkButton} disabled={busy !== null} onClick={() => remove(m)}>
+                      <p id={`confirm-${m.id}`}>{self ? "Leave this team? You will lose access to it." : `Remove ${m.name} from the team?`}</p>
+                      <button
+                        ref={confirmRef}
+                        type="button"
+                        className={linkButton}
+                        aria-describedby={`confirm-${m.id}`}
+                        disabled={busy !== null}
+                        onClick={() => remove(m)}
+                      >
                         {busy === "remove" ? (self ? "Leaving..." : "Removing...") : self ? "Yes, leave" : "Yes, remove"}
                       </button>
                       <button type="button" className={linkButton} disabled={busy !== null} onClick={() => cancel(m.id)}>
@@ -225,7 +241,7 @@ function Members({ me, mine }: { me: User; mine: Role }) {
   );
 }
 
-function Invitations() {
+function Invitations({ version }: { version: number }) {
   const [list, setList] = useState<Invitation[] | Failure | null>(null);
   const [email, setEmail] = useState("");
   const [role, setInviteRole] = useState<Invitation["role"]>("member");
@@ -233,7 +249,7 @@ function Invitations() {
 
   useEffect(() => {
     listInvitations().then(setList);
-  }, []);
+  }, [version]);
 
   function onInvite(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -10,6 +10,7 @@ import { isFailure, linkButton, problemText, roleName, Status, useAction } from 
 // The current team, a switch between the caller's teams, and "New team". Account handles signed out.
 export function TeamSwitcher() {
   const [current, setCurrent] = useState<Team | null>(null);
+  const [meFailed, setMeFailed] = useState(false);
   const [teams, setTeams] = useState<Team[] | Failure | null>(null);
   const [target, setTarget] = useState("");
   const [creating, setCreating] = useState(false);
@@ -19,10 +20,19 @@ export function TeamSwitcher() {
   const { busy, problem, done, run } = useAction();
 
   useEffect(() => {
-    getMe().then((r) => typeof r === "object" && setCurrent(r.user.current_team));
+    getMe().then((r) => {
+      if (typeof r === "object") setCurrent(r.user.current_team);
+      else if (r === "error") setMeFailed(true);
+    });
     listTeams().then(setTeams);
   }, []);
 
+  if (meFailed)
+    return (
+      <p role="alert" className="waitlist-error">
+        Your team couldn&apos;t be loaded. Reload to try again.
+      </p>
+    );
   if (!current) return null;
   const others = Array.isArray(teams) ? teams.filter((t) => t.id !== current.id) : [];
   const picked = target || others[0]?.id || "";

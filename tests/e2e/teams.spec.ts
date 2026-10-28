@@ -26,11 +26,15 @@ const invitation = {
 };
 
 async function signedIn(page: Page, role: Role) {
+  const loads = { invitations: 0 };
   await page.route("**/auth/me", (route) => route.fulfill({ json: me(role) }));
   await page.route("**/v1/team/members", (route) => route.fulfill({ json: members(role) }));
-  await page.route("**/v1/team/invitations", (route) =>
-    route.request().method() === "GET" ? route.fulfill({ json: [invitation] }) : route.fallback(),
-  );
+  await page.route("**/v1/team/invitations", (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    loads.invitations++;
+    return route.fulfill({ json: [invitation] });
+  });
+  return loads;
 }
 
 test("app shows the team switcher, switches and creates a team", async ({ page }) => {
@@ -61,6 +65,12 @@ test("app shows the team switcher, switches and creates a team", async ({ page }
   await expect(page.getByText("You are in Gamma as owner.")).toBeVisible();
 });
 
+test("app explains when the team can't be loaded", async ({ page }) => {
+  await page.route("**/auth/me", (route) => route.fulfill({ status: 500 }));
+  await page.goto("/app");
+  await expect(page.getByRole("alert").filter({ hasText: "Your team couldn't be loaded." })).toBeVisible();
+});
+
 test("team page sends a signed-out visitor to login", async ({ page }) => {
   await page.route("**/auth/me", (route) => route.fulfill({ status: 401, json: { error: "unauthorized" } }));
   await page.goto("/app/team");
@@ -68,7 +78,7 @@ test("team page sends a signed-out visitor to login", async ({ page }) => {
 });
 
 test("an admin manages members and invitations but can't touch owners or delete the team", async ({ page }) => {
-  await signedIn(page, "admin");
+  const loads = await signedIn(page, "admin");
   const calls: string[] = [];
   await page.route("**/v1/team/members/*", (route) => {
     const req = route.request();
@@ -91,19 +101,22 @@ test("an admin manages members and invitations but can't touch owners or delete 
   await expect(page.getByRole("heading", { name: "Delete team" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Remove Olive" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Leave team" })).toBeVisible();
-  const role = page.locator("#role-u-max");
+  const role = page.getByLabel("Role for Max");
   await expect(role.locator("option")).toHaveText(["Admin", "Member"]);
   await role.selectOption("admin");
-  await page.getByRole("button", { name: "Change role" }).click();
+  await page.getByRole("button", { name: "Change Max's role" }).click();
   await expect(page.getByText("Max is now admin.")).toBeFocused();
+  await expect.poll(() => loads.invitations).toBe(2);
 
   await page.getByRole("button", { name: "Remove Max" }).click();
   await expect(page.getByRole("button", { name: "Yes, remove" })).toBeFocused();
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("button", { name: "Remove Max" })).toBeFocused();
   await page.getByRole("button", { name: "Remove Max" }).click();
+  await expect(page.getByRole("button", { name: "Yes, remove" })).toHaveAccessibleDescription("Remove Max from the team?");
   await page.getByRole("button", { name: "Yes, remove" }).click();
   await expect(page.getByText("Max was removed from the team.")).toBeFocused();
+  await expect.poll(() => loads.invitations).toBe(3);
   expect(calls).toEqual(['PATCH /v1/team/members/u-max {"role":"admin"}', "DELETE /v1/team/members/u-max "]);
 
   await page.getByLabel("Email").fill("dup@example.com");
