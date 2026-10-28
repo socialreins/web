@@ -35,6 +35,7 @@ const messages: Record<Problem, ReactNode> = {
   invalid_passkey: "Your device's passkey couldn't be checked. Try again.",
   passkey_exists: "This device already has a passkey for your account.",
   not_found: "That passkey was already removed.",
+  invalid_credentials: "Something went wrong. Try again in a moment.",
   timeout: "The server took too long to answer. Try again in a moment.",
   error: "Something went wrong. Try again in a moment.",
   cancelled: "Adding the passkey was cancelled.",

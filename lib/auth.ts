@@ -1,5 +1,5 @@
 import { apiUrl } from "@/lib/waitlist";
-import { createCredential, type CreationOptionsJSON } from "@/lib/webauthn";
+import { createCredential, getCredential, type CreationOptionsJSON, type RequestOptionsJSON } from "@/lib/webauthn";
 
 export type LinkResult = "sent" | "invalid" | "rate_limited" | "timeout" | "error";
 export type User = { id: string; email: string; name: string; username: string | null; has_password: boolean };
@@ -48,8 +48,9 @@ export async function signOut(): Promise<boolean> {
   }
 }
 
-// Error codes brain sends for the security endpoints, plus what the browser side can add.
+// Error codes brain sends for the auth endpoints.
 const codes = [
+  "invalid_credentials",
   "reauth_required",
   "invalid_current_password",
   "invalid_password",
@@ -63,11 +64,11 @@ export type Failure = (typeof codes)[number] | "rate_limited" | "signed_out" | "
 export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };
 export type AddResult = Passkey | Failure | "cancelled" | "unsupported";
 
+// Sign-in failures are 401 with a code; any other 401 means the session is gone.
 async function failure(res: Response): Promise<Failure> {
-  if (res.status === 401) return "signed_out";
   if (res.status === 429) return "rate_limited";
   const code: unknown = (await res.json().catch(() => null))?.error;
-  return codes.find((c) => c === code) ?? "error";
+  return codes.find((c) => c === code) ?? (res.status === 401 ? "signed_out" : "error");
 }
 
 const caught = (e: unknown): Failure =>
@@ -123,6 +124,36 @@ export async function addPasskey(name: string, password?: string): Promise<AddRe
     }
     const finish = await fetch(`${apiUrl}/auth/passkeys/register/finish`, send("POST", { challenge_id, credential, name }));
     return finish.ok ? ((await finish.json()) as Passkey) : await failure(finish);
+  } catch (e) {
+    return caught(e);
+  }
+}
+
+// brain answers the same 401 invalid_credentials for an unknown email, no password and a wrong one.
+export async function signInWithPassword(email: string, password: string): Promise<"ok" | Failure> {
+  try {
+    const res = await fetch(`${apiUrl}/auth/login`, send("POST", { email, password }));
+    return res.ok ? "ok" : await failure(res);
+  } catch (e) {
+    return caught(e);
+  }
+}
+
+// Discoverable credential: the device picks the account, so no email is asked for.
+export async function signInWithPasskey(): Promise<"ok" | Failure | "cancelled"> {
+  try {
+    const start = await fetch(`${apiUrl}/auth/passkeys/login/start`, opts({ method: "POST" }));
+    if (!start.ok) return await failure(start);
+    const { challenge_id, options } = (await start.json()) as { challenge_id: string; options: RequestOptionsJSON };
+    let credential;
+    try {
+      credential = await getCredential(options);
+    } catch (e) {
+      // NotAllowedError: cancelled, timed out or no passkey on this device.
+      return e instanceof DOMException && e.name === "NotAllowedError" ? "cancelled" : "error";
+    }
+    const finish = await fetch(`${apiUrl}/auth/passkeys/login/finish`, send("POST", { challenge_id, credential }));
+    return finish.ok ? "ok" : await failure(finish);
   } catch (e) {
     return caught(e);
   }

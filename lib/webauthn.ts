@@ -37,3 +37,34 @@ export async function createCredential({ publicKey: pk }: CreationOptionsJSON) {
     clientExtensionResults: cred.getClientExtensionResults(),
   };
 }
+
+export type RequestOptionsJSON = {
+  publicKey: Omit<PublicKeyCredentialRequestOptions, "challenge" | "allowCredentials"> & {
+    challenge: string;
+    allowCredentials?: Descriptor[];
+  };
+};
+
+// Runs the browser's get ceremony with brain's options and returns the assertion as brain reads it.
+export async function getCredential({ publicKey: pk }: RequestOptionsJSON) {
+  const cred = (await navigator.credentials.get({
+    publicKey: {
+      ...pk,
+      challenge: fromBase64url(pk.challenge),
+      allowCredentials: pk.allowCredentials?.map((c) => ({ ...c, id: fromBase64url(c.id) })),
+    },
+  })) as PublicKeyCredential;
+  const res = cred.response as AuthenticatorAssertionResponse;
+  return {
+    id: cred.id,
+    rawId: toBase64url(cred.rawId),
+    type: cred.type,
+    response: {
+      authenticatorData: toBase64url(res.authenticatorData),
+      clientDataJSON: toBase64url(res.clientDataJSON),
+      signature: toBase64url(res.signature),
+      userHandle: res.userHandle ? toBase64url(res.userHandle) : null,
+    },
+    clientExtensionResults: cred.getClientExtensionResults(),
+  };
+}
