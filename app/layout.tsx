@@ -20,8 +20,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body>
-        {children}
         <Script src="/config.js" strategy="beforeInteractive" />
+        {children}
       </body>
     </html>
   );
