@@ -98,3 +98,25 @@ test("passkey button is hidden without WebAuthn", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Sign in with a password" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in with a passkey" })).toHaveCount(0);
 });
+
+test("a cancelled passkey prompt is a quiet status, not an alert", async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.credentials.get = () => Promise.reject(new DOMException("cancelled", "NotAllowedError"));
+  });
+  await page.route("**/auth/passkeys/login/start", (route) =>
+    route.fulfill({ json: { challenge_id: "c1", options: { publicKey: { challenge: "3q2-7w", allowCredentials: [] } } } }),
+  );
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Sign in with a passkey" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Passkey sign-in was cancelled" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Passkey sign-in was cancelled" })).toHaveCount(0);
+});
+
+test("switching away from the password form clears the password", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Sign in with a password" }).click();
+  await page.getByLabel("Password").fill("secret");
+  await page.getByRole("button", { name: "Sign in with an email link" }).click();
+  await page.getByRole("button", { name: "Sign in with a password" }).click();
+  await expect(page.getByLabel("Password")).toHaveValue("");
+});

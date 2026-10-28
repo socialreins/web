@@ -71,6 +71,7 @@ export function LoginForm({ linkError }: { linkError: string | null }) {
   function switchTo(next: "link" | "password") {
     flushSync(() => {
       setMode(next);
+      setPassword("");
       setSignIn("idle");
       setStatus("idle");
     });
@@ -180,7 +181,8 @@ export function LoginForm({ linkError }: { linkError: string | null }) {
         </p>
       </form>
       {signInError && (
-        <p role="alert" className="waitlist-error">
+        // A cancelled prompt is the user's own choice, so it is announced politely, not as an alert.
+        <p role={signIn === "cancelled" ? "status" : "alert"} className="waitlist-error">
           {signInFailed(signIn)}
         </p>
       )}
