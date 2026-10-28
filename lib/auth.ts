@@ -2,7 +2,16 @@ import { apiUrl } from "@/lib/waitlist";
 import { createCredential, getCredential, type CreationOptionsJSON, type RequestOptionsJSON } from "@/lib/webauthn";
 
 export type LinkResult = "sent" | "invalid" | "rate_limited" | "timeout" | "error";
-export type User = { id: string; email: string; name: string; username: string | null; has_password: boolean };
+export type Role = "owner" | "admin" | "member";
+export type Team = { id: string; name: string; role: Role };
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  username: string | null;
+  has_password: boolean;
+  current_team: Team;
+};
 export type MeResult = { user: User } | "signed_out" | "error";
 
 const TIMEOUT_MS = 10_000;
@@ -59,6 +68,15 @@ const codes = [
   "invalid_passkey",
   "passkey_exists",
   "not_found",
+  "forbidden",
+  "last_team",
+  "last_owner",
+  "invalid_role",
+  "invalid_email",
+  "already_member",
+  "already_invited",
+  "mail_failed",
+  "email_mismatch",
 ] as const;
 export type Failure = (typeof codes)[number] | "rate_limited" | "signed_out" | "timeout" | "error";
 export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };
@@ -154,6 +172,17 @@ export async function signInWithPasskey(): Promise<"ok" | Failure | "cancelled">
     }
     const finish = await fetch(`${apiUrl}/auth/passkeys/login/finish`, send("POST", { challenge_id, credential }));
     return finish.ok ? "ok" : await failure(finish);
+  } catch (e) {
+    return caught(e);
+  }
+}
+
+// One JSON call to brain: the parsed body on success ("ok" for 204), else the mapped failure.
+export async function api<T = "ok">(path: string, method = "GET", body?: unknown): Promise<T | Failure> {
+  try {
+    const res = await fetch(`${apiUrl}${path}`, body === undefined ? opts({ method }) : send(method, body));
+    if (!res.ok) return await failure(res);
+    return (res.status === 204 ? "ok" : await res.json()) as T;
   } catch (e) {
     return caught(e);
   }
