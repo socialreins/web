@@ -37,8 +37,9 @@ and `linux/arm64`.
 2. Edit `.env`: set `POSTGRES_PASSWORD` (`openssl rand -hex 24`), and `BRAIN_URL` and
    `WEB_URL` to where people will reach brain and web. The defaults
    (`http://localhost:8080` and `http://localhost:3000`) work on your own machine. For a
-   personal install, set `REGISTRATION_DISABLED=true` so nobody but you (and people you invite)
-   can sign up.
+   personal install, set `REGISTRATION_DISABLED=true` and `OWNER_EMAIL` to your email, so
+   nobody but you (and people you invite) can sign up. Without `OWNER_EMAIL`, whoever signs up
+   first owns the install.
 3. Start it:
 
    ```sh
@@ -46,15 +47,17 @@ and `linux/arm64`.
    ```
 
    brain creates and migrates its database on start.
-4. Open `WEB_URL`, choose **Sign in**, enter your email. With no mail configured, the sign-in
-   link is written to brain's log instead of sent:
+4. Open `WEB_URL`, choose **Sign in**, enter your email. `.env` starts with `MAIL_LOG=true`,
+   so the sign-in link is written to brain's log instead of sent:
 
    ```sh
    docker compose logs brain | grep auth/magic
    ```
 
    Open that link and you land in the app with your own team. To send real mail, set
-   `RESEND_API_KEY` or `SMTP_URL`, plus `MAIL_FROM`, then `docker compose up -d`.
+   `RESEND_API_KEY` or `SMTP_URL`, plus `MAIL_FROM`, remove `MAIL_LOG=true` (or set it to
+   `false`), then `docker compose up -d`. With no mail and no `MAIL_LOG=true`, brain refuses to
+   start rather than put sign-in links in its log by surprise.
 
 Upgrade: `docker compose pull && docker compose up -d`. Migrations only move forward and are
 safe to rerun. `SOCIALREINS_VERSION` picks the image tag: `main` (the default, follows the main
