@@ -23,7 +23,7 @@ const signIn = (text: string) => (
 
 type Problem = Failure | "cancelled" | "unsupported" | "confirm_password";
 
-const messages: Record<Problem, ReactNode> = {
+const messages: Partial<Record<Problem, ReactNode>> = {
   confirm_password: <>For your safety, enter your current password, or {signIn("sign in again")}.</>,
   reauth_required: <>For your safety, this needs a fresh sign-in. {signIn("Sign in again")}, then come back here.</>,
   signed_out: <>You are signed out. {signIn("Sign in again")} to continue.</>,
@@ -35,12 +35,13 @@ const messages: Record<Problem, ReactNode> = {
   invalid_passkey: "Your device's passkey couldn't be checked. Try again.",
   passkey_exists: "This device already has a passkey for your account.",
   not_found: "That passkey was already removed.",
-  invalid_credentials: "Something went wrong. Try again in a moment.",
   timeout: "The server took too long to answer. Try again in a moment.",
   error: "Something went wrong. Try again in a moment.",
   cancelled: "Adding the passkey was cancelled.",
   unsupported: "This browser can't create passkeys.",
 };
+
+const say = (p: Problem) => messages[p] ?? messages.error;
 
 const linkButton =
   "font-bold underline decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep disabled:cursor-progress disabled:opacity-70";
@@ -140,7 +141,7 @@ function PasswordSection({ hasPassword, onSaved }: { hasPassword: boolean; onSav
         </p>
         {failed && (
           <p role="alert" className="waitlist-error">
-            {messages[status]}
+            {say(status)}
           </p>
         )}
         <div className="waitlist-row">
@@ -233,14 +234,14 @@ function PasskeysSection({ hasPassword }: { hasPassword: boolean }) {
       {done && <Done focusKey={done.n} text={done.text} />}
       {problem && (
         <p role="alert" className="waitlist-error">
-          {messages[problem]}
+          {say(problem)}
         </p>
       )}
       {keys === null ? (
         <p className="text-ink-soft">Loading your passkeys...</p>
       ) : !Array.isArray(keys) ? (
         <p role="alert" className="waitlist-error">
-          Your passkeys couldn&apos;t be loaded. {messages[keys]}
+          Your passkeys couldn&apos;t be loaded. {say(keys)}
         </p>
       ) : keys.length === 0 ? (
         <p>You have no passkeys yet.</p>
