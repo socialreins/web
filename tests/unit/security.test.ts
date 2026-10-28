@@ -147,6 +147,16 @@ describe("addPasskey", () => {
     }
   });
 
+  it("sends the password to start only when given", async () => {
+    stubBrowser(vi.fn());
+    const fetch = vi.fn(async () => Response.json({ error: "reauth_required" }, { status: 403 }));
+    vi.stubGlobal("fetch", fetch);
+    expect(await addPasskey("")).toBe("reauth_required");
+    expect(await addPasskey("", "my password")).toBe("reauth_required");
+    expect(JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toEqual({});
+    expect(JSON.parse((fetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string)).toEqual({ password: "my password" });
+  });
+
   it("reports a browser without WebAuthn as unsupported", async () => {
     vi.stubGlobal("window", {});
     expect(await addPasskey("")).toBe("unsupported");

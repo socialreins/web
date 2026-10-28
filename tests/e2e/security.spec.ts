@@ -127,3 +127,58 @@ test("add a passkey with a virtual authenticator", async ({ page, context }) => 
   const clientData = JSON.parse(Buffer.from(finish!.credential.response.clientDataJSON!, "base64url").toString());
   expect(clientData).toMatchObject({ type: "webauthn.create", challenge: "3q2-7w" });
 });
+
+test("adding a passkey asks for the password when a fresh sign-in is needed, then reloads the list", async ({
+  page,
+  context,
+}) => {
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true },
+  });
+  await page.route("**/auth/me", (route) => route.fulfill({ json: { ...user, has_password: true } }));
+  // The first load fails; after the add the reload returns both keys.
+  let loads = 0;
+  await page.route("**/auth/passkeys", (route) =>
+    ++loads === 1 ? route.fulfill({ status: 500 }) : route.fulfill({ json: [key, { ...key, id: "k2", name: "Work laptop" }] }),
+  );
+  const starts: unknown[] = [];
+  await page.route("**/auth/passkeys/register/start", (route) => {
+    const body = route.request().postDataJSON();
+    starts.push(body);
+    if (!body.password) return route.fulfill({ status: 403, json: { error: "reauth_required" } });
+    return route.fulfill({
+      json: {
+        challenge_id: "c1",
+        options: {
+          publicKey: {
+            rp: { id: "localhost", name: "SocialReins" },
+            user: { id: "AQID", name: user.email, displayName: user.name },
+            challenge: "3q2-7w",
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            authenticatorSelection: { residentKey: "required", userVerification: "required" },
+            attestation: "none",
+          },
+        },
+      },
+    });
+  });
+  await page.route("**/auth/passkeys/register/finish", (route) =>
+    route.fulfill({ status: 201, json: { ...key, id: "k2", name: "Work laptop" } }),
+  );
+  await page.goto("/app/security");
+  await expect(page.getByText("Your passkeys couldn't be loaded.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Add a passkey" }).click();
+  const alert = page.getByRole("alert").filter({ hasText: "enter your current password" });
+  await expect(alert).toBeVisible();
+  await expect(alert.getByRole("link", { name: "sign in again" })).toHaveAttribute("href", "/login");
+  await expect(page.getByLabel("Confirm with your password")).toBeFocused();
+  await page.getByLabel("Confirm with your password").fill("my password");
+  await page.getByRole("button", { name: "Add a passkey" }).click();
+  await expect(page.getByText('Passkey "Work laptop" added.')).toBeFocused();
+  expect(starts).toEqual([{}, { password: "my password" }]);
+  await expect(page.getByText("Old phone")).toBeVisible();
+  await expect(page.getByText("Work laptop", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Confirm with your password")).toBeHidden();
+});

@@ -10,21 +10,23 @@ import {
   listPasskeys,
   removePasskey,
   setPassword,
-  type AddResult,
   type Failure,
   type MeResult,
   type Passkey,
 } from "@/lib/auth";
 
-const signInAgain = (
+const signIn = (text: string) => (
   <Link href="/login" className="underline decoration-2 underline-offset-4">
-    Sign in again
+    {text}
   </Link>
 );
 
-const messages: Record<Failure | "cancelled" | "unsupported", ReactNode> = {
-  reauth_required: <>For your safety, this needs a fresh sign-in. {signInAgain}, then come back here.</>,
-  signed_out: <>You are signed out. {signInAgain} to continue.</>,
+type Problem = Failure | "cancelled" | "unsupported" | "confirm_password";
+
+const messages: Record<Problem, ReactNode> = {
+  confirm_password: <>For your safety, enter your current password, or {signIn("sign in again")}.</>,
+  reauth_required: <>For your safety, this needs a fresh sign-in. {signIn("Sign in again")}, then come back here.</>,
+  signed_out: <>You are signed out. {signIn("Sign in again")} to continue.</>,
   rate_limited: "Too many attempts. Wait a minute, then try again.",
   invalid_current_password: "Your current password is wrong. Check it and try again.",
   invalid_password: "Use a password between 12 and 256 characters long.",
@@ -69,7 +71,7 @@ export function Security() {
   return (
     <>
       <PasswordSection hasPassword={me.user.has_password} onSaved={() => setMe({ user: { ...me.user, has_password: true } })} />
-      <PasskeysSection />
+      <PasskeysSection hasPassword={me.user.has_password} />
     </>
   );
 }
@@ -152,11 +154,14 @@ function PasswordSection({ hasPassword, onSaved }: { hasPassword: boolean; onSav
 
 const added = (iso: string) => new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
 
-function PasskeysSection() {
+function PasskeysSection({ hasPassword }: { hasPassword: boolean }) {
   const [keys, setKeys] = useState<Passkey[] | Failure | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState<"adding" | "removing" | null>(null);
-  const [problem, setProblem] = useState<Exclude<AddResult, Passkey> | null>(null);
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [askPassword, setAskPassword] = useState(false);
+  const [confirmPw, setConfirmPw] = useState("");
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [done, setDone] = useState<{ text: string; n: number } | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const removeRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -182,11 +187,22 @@ function PasskeysSection() {
     e.preventDefault();
     start();
     setBusy("adding");
-    const r = await addPasskey(name.trim());
+    const r = await addPasskey(name.trim(), askPassword ? confirmPw : undefined);
     setBusy(null);
+    if (r === "reauth_required" && hasPassword) {
+      // Re-render first so the field exists, then put the cursor in it.
+      flushSync(() => {
+        setAskPassword(true);
+        setProblem("confirm_password");
+      });
+      return passwordRef.current?.focus();
+    }
     if (typeof r === "string") return setProblem(r);
-    setKeys((k) => (Array.isArray(k) ? [...k, r] : [r]));
+    // Reload rather than append, so an earlier failed load is retried too.
+    listPasskeys().then(setKeys);
     setName("");
+    setConfirmPw("");
+    setAskPassword(false);
     setDone((d) => ({ text: `Passkey "${r.name}" added.`, n: (d?.n ?? 0) + 1 }));
   }
 
@@ -269,6 +285,21 @@ function PasskeysSection() {
         </ul>
       )}
       <form onSubmit={onAdd} className="waitlist">
+        {askPassword && (
+          <>
+            <label htmlFor="passkey-password">Confirm with your password</label>
+            <input
+              ref={passwordRef}
+              id="passkey-password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={confirmPw}
+              onChange={(e) => setConfirmPw(e.target.value)}
+              aria-invalid={problem === "confirm_password" || undefined}
+            />
+          </>
+        )}
         <label htmlFor="passkey-name">Name for the new passkey (optional)</label>
         <div className="waitlist-row">
           <input

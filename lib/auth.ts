@@ -105,10 +105,11 @@ export async function removePasskey(id: string): Promise<"ok" | Failure> {
 }
 
 // Start, the device ceremony, then finish. A blank name becomes "Passkey" on the server.
-export async function addPasskey(name: string): Promise<AddResult> {
+// brain takes the account password instead of a recent sign-in; a wrong one is also reauth_required.
+export async function addPasskey(name: string, password?: string): Promise<AddResult> {
   if (typeof window === "undefined" || !window.PublicKeyCredential) return "unsupported";
   try {
-    const start = await fetch(`${apiUrl}/auth/passkeys/register/start`, send("POST", {}));
+    const start = await fetch(`${apiUrl}/auth/passkeys/register/start`, send("POST", password === undefined ? {} : { password }));
     if (!start.ok) return await failure(start);
     const { challenge_id, options } = (await start.json()) as { challenge_id: string; options: CreationOptionsJSON };
     let credential;
