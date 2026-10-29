@@ -35,7 +35,9 @@ and `linux/arm64`.
    curl -fsSL https://raw.githubusercontent.com/socialreins/web/main/.env.example -o .env
    ```
 
-2. Edit `.env`: set `POSTGRES_PASSWORD` (`openssl rand -hex 24`), and `BRAIN_URL` and
+2. Edit `.env`: set `POSTGRES_PASSWORD` (`openssl rand -hex 24`), `ENCRYPTION_KEY`
+   (`openssl rand -base64 32`; it encrypts connected accounts' tokens, so back it up with the
+   database), and `BRAIN_URL` and
    `WEB_URL` to where people will reach brain and web. The defaults
    (`http://localhost:8080` and `http://localhost:3000`) work on your own machine. For a
    personal install, set `REGISTRATION_DISABLED=true` and `OWNER_EMAIL` to your email, so
@@ -60,7 +62,8 @@ and `linux/arm64`.
    `false`), then `docker compose up -d`. With no mail and no `MAIL_LOG=true`, brain refuses to
    start rather than put sign-in links in its log by surprise.
 
-Upgrade: `docker compose pull && docker compose up -d`. Migrations only move forward and are
+Upgrade: `docker compose pull && docker compose up -d`. Installs from before `ENCRYPTION_KEY`
+existed: add it to `.env` first, or brain will not start. Migrations only move forward and are
 safe to rerun. `SOCIALREINS_VERSION` picks the image tag: `main` (the default, follows the main
 branch), `latest` (the newest release) or a release such as `v0.1.0`.
 
