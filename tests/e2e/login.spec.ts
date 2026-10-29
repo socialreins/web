@@ -1,42 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
-const user = { id: "1", email: "someone@example.com", name: "someone", username: null, has_password: true };
-
-test("password sign-in explains a bad password, then goes to the app", async ({ page }) => {
-  const bodies: unknown[] = [];
-  await page.route("**/auth/login", (route) => {
-    bodies.push(route.request().postDataJSON());
-    return bodies.length === 1
-      ? route.fulfill({ status: 401, json: { error: "invalid_credentials" } })
-      : route.fulfill({ json: user });
-  });
-  await page.route("**/auth/me", (route) => route.fulfill({ json: user }));
-  await page.goto("/login");
-  await page.getByRole("button", { name: "Sign in with a password" }).click();
-  await expect(page.getByLabel("Password")).toBeFocused();
-  await page.getByLabel("Email").fill("someone@example.com");
-  await page.getByLabel("Password").fill("wrong one");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "That email and password didn't work." })).toBeVisible();
-  await expect(page.getByLabel("Password")).toHaveAttribute("aria-invalid", "true");
-  await page.getByLabel("Password").fill("the right one");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL("/app");
-  expect(bodies).toEqual([
-    { email: "someone@example.com", password: "wrong one" },
-    { email: "someone@example.com", password: "the right one" },
-  ]);
-});
-
-test("password sign-in can switch back to the email link", async ({ page }) => {
-  await page.goto("/login");
-  await page.getByRole("button", { name: "Sign in with a password" }).click();
-  await page.getByRole("button", { name: "Sign in with an email link" }).click();
-  await expect(page.getByLabel("Email")).toBeFocused();
-  await expect(page.getByLabel("Password")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeVisible();
-});
+const user = { id: "1", email: "someone@example.com", name: "someone", username: null };
 
 test("passkey sign-in with a virtual authenticator goes to the app", async ({ page, context }) => {
   const cdp = await context.newCDPSession(page);
@@ -95,7 +60,7 @@ test("passkey button is hidden without WebAuthn", async ({ page }) => {
     delete window.PublicKeyCredential;
   });
   await page.goto("/login");
-  await expect(page.getByRole("button", { name: "Sign in with a password" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Email me a link" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in with a passkey" })).toHaveCount(0);
 });
 
@@ -112,11 +77,38 @@ test("a cancelled passkey prompt is a quiet status, not an alert", async ({ page
   await expect(page.getByRole("alert").filter({ hasText: "Passkey sign-in was cancelled" })).toHaveCount(0);
 });
 
-test("switching away from the password form clears the password", async ({ page }) => {
+test("Continue with Google shows only when brain offers it, and starts at brain", async ({ page }) => {
+  await page.route("**/auth/providers", (route) => route.fulfill({ json: { google: true } }));
   await page.goto("/login");
-  await page.getByRole("button", { name: "Sign in with a password" }).click();
-  await page.getByLabel("Password").fill("secret");
-  await page.getByRole("button", { name: "Sign in with an email link" }).click();
-  await page.getByRole("button", { name: "Sign in with a password" }).click();
-  await expect(page.getByLabel("Password")).toHaveValue("");
+  const google = page.getByRole("link", { name: "Continue with Google" });
+  await expect(google).toHaveAttribute("href", /\/auth\/google\/start\?next=%2Fapp$/);
+  await expect(page.getByText("or", { exact: true })).toBeVisible();
+
+  await page.unrouteAll();
+  await page.route("**/auth/providers", (route) => route.fulfill({ json: { google: false } }));
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Email me a link" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Continue with Google" })).toHaveCount(0);
+});
+
+test("Continue with Google stays hidden when brain can't say", async ({ page }) => {
+  await page.route("**/auth/providers", (route) => route.fulfill({ status: 500 }));
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: "Email me a link" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Continue with Google" })).toHaveCount(0);
+});
+
+test("login explains Google and closed sign-up errors", async ({ page }) => {
+  await page.goto("/login?error=google_failed");
+  await expect(page.getByRole("alert").filter({ hasText: "Google sign-in didn't finish" })).toBeVisible();
+  await page.goto("/login?error=registration_disabled");
+  await expect(page.getByRole("alert").filter({ hasText: "New accounts are closed on this server" })).toBeVisible();
+});
+
+test("login has no password field and links the terms and privacy policy", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { name: "Sign in or create an account" })).toBeVisible();
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
+  await expect(page.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
 });

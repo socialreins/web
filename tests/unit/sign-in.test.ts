@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { signInWithPasskey, signInWithPassword } from "@/lib/auth";
+import { getProviders, googleStartUrl, signInWithPasskey } from "@/lib/auth";
 import { apiUrl } from "@/lib/waitlist";
 
 const reply = (status: number, error?: string) =>
@@ -8,31 +8,33 @@ const call = (fetch: ReturnType<typeof vi.fn>, i: number) => fetch.mock.calls[i]
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("signInWithPassword", () => {
-  it("posts email and password to /auth/login with credentials", async () => {
-    const fetch = vi.fn(async () => Response.json({ id: "1" }));
+describe("getProviders", () => {
+  it("reads /auth/providers with credentials", async () => {
+    const fetch = vi.fn(async () => Response.json({ google: true }));
     vi.stubGlobal("fetch", fetch);
-    expect(await signInWithPassword("a@b.co", "secret")).toBe("ok");
-    const [url, init] = call(fetch, 0);
-    expect(url).toBe(`${apiUrl}/auth/login`);
-    expect(init).toMatchObject({ method: "POST", credentials: "include" });
-    expect(JSON.parse(init.body as string)).toEqual({ email: "a@b.co", password: "secret" });
+    expect(await getProviders()).toEqual({ google: true });
+    expect(call(fetch, 0)[0]).toBe(`${apiUrl}/auth/providers`);
+    expect(call(fetch, 0)[1]).toMatchObject({ credentials: "include" });
   });
 
-  it.each([
-    [401, "invalid_credentials", "invalid_credentials"],
-    [429, "rate_limited", "rate_limited"],
-    [403, "forbidden_origin", "error"],
-    [422, "invalid_body", "error"],
-    [500, undefined, "error"],
-  ])("maps %i %s to %s", async (status, code, result) => {
-    vi.stubGlobal("fetch", reply(status, code));
-    expect(await signInWithPassword("a@b.co", "x")).toBe(result);
+  it("treats anything but google: true as no Google", async () => {
+    for (const fetch of [
+      vi.fn(async () => Response.json({ google: false })),
+      vi.fn(async () => Response.json({ google: "yes" })),
+      vi.fn(async () => Response.json({})),
+      reply(500),
+      vi.fn().mockRejectedValue(new TypeError("offline")),
+    ]) {
+      vi.stubGlobal("fetch", fetch);
+      expect(await getProviders()).toEqual({ google: false });
+    }
   });
+});
 
-  it("reports a timeout", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("slow", "TimeoutError")));
-    expect(await signInWithPassword("a@b.co", "x")).toBe("timeout");
+describe("googleStartUrl", () => {
+  it("points the browser at brain with an encoded next path", () => {
+    expect(googleStartUrl()).toBe(`${apiUrl}/auth/google/start?next=%2Fapp`);
+    expect(googleStartUrl("/invitations/a b")).toBe(`${apiUrl}/auth/google/start?next=%2Finvitations%2Fa%20b`);
   });
 });
 

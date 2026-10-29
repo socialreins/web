@@ -9,7 +9,6 @@ import {
   getMe,
   listPasskeys,
   removePasskey,
-  setPassword,
   type Failure,
   type MeResult,
   type Passkey,
@@ -21,15 +20,12 @@ const signIn = (text: string) => (
   </Link>
 );
 
-type Problem = Failure | "cancelled" | "unsupported" | "confirm_password";
+type Problem = Failure | "cancelled" | "unsupported";
 
 const messages: Partial<Record<Problem, ReactNode>> = {
-  confirm_password: <>For your safety, enter your current password, or {signIn("sign in again")}.</>,
   reauth_required: <>For your safety, this needs a fresh sign-in. {signIn("Sign in again")}, then come back here.</>,
   signed_out: <>You are signed out. {signIn("Sign in again")} to continue.</>,
   rate_limited: "Too many attempts. Wait a minute, then try again.",
-  invalid_current_password: "Your current password is wrong. Check it and try again.",
-  invalid_password: "Use a password between 12 and 256 characters long.",
   invalid_name: "Keep the passkey name to 64 characters or fewer.",
   invalid_challenge: "That took too long. Try adding the passkey again.",
   invalid_passkey: "Your device's passkey couldn't be checked. Try again.",
@@ -72,98 +68,18 @@ export function Security() {
   if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
   return (
     <>
-      <PasswordSection hasPassword={me.user.has_password} onSaved={() => setMe({ user: { ...me.user, has_password: true } })} />
-      <PasskeysSection hasPassword={me.user.has_password} />
+      <PasskeysSection />
     </>
-  );
-}
-
-function PasswordSection({ hasPassword, onSaved }: { hasPassword: boolean; onSaved: () => void }) {
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "ok" | Failure>("idle");
-  const [saved, setSaved] = useState(0);
-
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    // Clear the old message first so a repeated identical error is announced again.
-    flushSync(() => setStatus("saving"));
-    const r = await setPassword(next, hasPassword ? current : undefined);
-    setStatus(r);
-    if (r === "ok") {
-      setCurrent("");
-      setNext("");
-      setSaved((n) => n + 1);
-      onSaved();
-    }
-  }
-
-  const failed = status !== "idle" && status !== "saving" && status !== "ok";
-  return (
-    <section aria-labelledby="password-heading" className="grid gap-3">
-      <h2 id="password-heading" className="font-display text-2xl font-extrabold tracking-tight">
-        Password
-      </h2>
-      <p className="text-ink-soft">
-        {hasPassword ? "Change the password you sign in with." : "Add a password so you can sign in without an email link."}
-      </p>
-      {status === "ok" && <Done focusKey={saved} text="Password saved. Your other devices were signed out." />}
-      <form onSubmit={onSubmit} className="waitlist">
-        {hasPassword && (
-          <>
-            <label htmlFor="current-password">Current password</label>
-            <input
-              id="current-password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-              aria-invalid={status === "invalid_current_password" || undefined}
-            />
-          </>
-        )}
-        <label htmlFor="new-password">New password</label>
-        <input
-          id="new-password"
-          type="password"
-          required
-          minLength={12}
-          maxLength={256}
-          autoComplete="new-password"
-          value={next}
-          onChange={(e) => setNext(e.target.value)}
-          aria-invalid={status === "invalid_password" || undefined}
-          aria-describedby="new-password-note"
-        />
-        <p id="new-password-note" className="waitlist-note">
-          At least 12 characters.
-        </p>
-        {failed && (
-          <p role="alert" className="waitlist-error">
-            {say(status)}
-          </p>
-        )}
-        <div className="waitlist-row">
-          <button type="submit" disabled={status === "saving"}>
-            {status === "saving" ? "Saving..." : hasPassword ? "Change password" : "Set password"}
-          </button>
-        </div>
-      </form>
-    </section>
   );
 }
 
 const added = (iso: string) => new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
 
-function PasskeysSection({ hasPassword }: { hasPassword: boolean }) {
+function PasskeysSection() {
   const [keys, setKeys] = useState<Passkey[] | Failure | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState<"adding" | "removing" | null>(null);
   const [problem, setProblem] = useState<Problem | null>(null);
-  const [askPassword, setAskPassword] = useState(false);
-  const [confirmPw, setConfirmPw] = useState("");
-  const passwordRef = useRef<HTMLInputElement>(null);
   const [done, setDone] = useState<{ text: string; n: number } | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const removeRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -189,22 +105,12 @@ function PasskeysSection({ hasPassword }: { hasPassword: boolean }) {
     e.preventDefault();
     start();
     setBusy("adding");
-    const r = await addPasskey(name.trim(), askPassword ? confirmPw : undefined);
+    const r = await addPasskey(name.trim());
     setBusy(null);
-    if (r === "reauth_required" && hasPassword) {
-      // Re-render first so the field exists, then put the cursor in it.
-      flushSync(() => {
-        setAskPassword(true);
-        setProblem("confirm_password");
-      });
-      return passwordRef.current?.focus();
-    }
     if (typeof r === "string") return setProblem(r);
     // Reload rather than append, so an earlier failed load is retried too.
     listPasskeys().then(setKeys);
     setName("");
-    setConfirmPw("");
-    setAskPassword(false);
     setDone((d) => ({ text: `Passkey "${r.name}" added.`, n: (d?.n ?? 0) + 1 }));
   }
 
@@ -230,7 +136,7 @@ function PasskeysSection({ hasPassword }: { hasPassword: boolean }) {
       <h2 id="passkeys-heading" className="font-display text-2xl font-extrabold tracking-tight">
         Passkeys
       </h2>
-      <p className="text-ink-soft">Sign in with your fingerprint, face or device PIN instead of a password.</p>
+      <p className="text-ink-soft">Sign in with Face ID, Touch ID or your device PIN.</p>
       {done && <Done focusKey={done.n} text={done.text} />}
       {problem && (
         <p role="alert" className="waitlist-error">
@@ -287,21 +193,6 @@ function PasskeysSection({ hasPassword }: { hasPassword: boolean }) {
         </ul>
       )}
       <form onSubmit={onAdd} className="waitlist">
-        {askPassword && (
-          <>
-            <label htmlFor="passkey-password">Confirm with your password</label>
-            <input
-              ref={passwordRef}
-              id="passkey-password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={confirmPw}
-              onChange={(e) => setConfirmPw(e.target.value)}
-              aria-invalid={problem === "confirm_password" || undefined}
-            />
-          </>
-        )}
         <label htmlFor="passkey-name">Name for the new passkey (optional)</label>
         <div className="waitlist-row">
           <input

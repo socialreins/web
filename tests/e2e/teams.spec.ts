@@ -7,7 +7,7 @@ const me = (role: Role, extra = {}) => ({
   email: "me@example.com",
   name: "Me",
   username: null,
-  has_password: true,
+
   current_team: acme(role),
   ...extra,
 });
@@ -161,7 +161,7 @@ test("the last owner leaving is explained", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Leave team" })).toBeFocused();
 });
 
-test("an owner deletes the team after typing its name and confirming the password", async ({ page }) => {
+test("an owner deletes the team after typing its name, signing in again when needed", async ({ page }) => {
   await signedIn(page, "owner");
   const bodies: unknown[] = [];
   await page.route("**/v1/team", (route) => {
@@ -181,15 +181,15 @@ test("an owner deletes the team after typing its name and confirming the passwor
   await expect(del).toBeDisabled();
   await page.getByLabel("Type Acme to confirm").fill("Acme");
   await del.click();
-  const reauth = page.getByRole("alert").filter({ hasText: "password didn't work, or you need a fresh sign-in" });
+  const reauth = page.getByRole("alert").filter({ hasText: "needs a fresh sign-in" });
   await expect(reauth).toBeVisible();
-  await expect(reauth.getByRole("link", { name: "sign in again" })).toHaveAttribute("href", "/login");
-  await page.getByLabel("Your password").fill("secret");
+  await expect(reauth.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login");
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await del.click();
   await expect(page.getByRole("alert").filter({ hasText: "your only team" })).toBeVisible();
   await del.click();
   await expect(page).toHaveURL("/app");
-  expect(bodies).toEqual([{}, { password: "secret" }, { password: "secret" }]);
+  expect(bodies).toEqual([{}, {}, {}]);
 });
 
 const preview = {

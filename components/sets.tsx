@@ -8,7 +8,7 @@ import { listConnections, type Connection } from "@/lib/connections";
 import { createSet, deleteSet, listSets, purgeDate, renameSet, restoreSet, type SocialSet } from "@/lib/sets";
 import { manages } from "@/lib/teams";
 import { accountName, Avatar } from "@/components/connections";
-import { isFailure, linkButton, problemText, signInLink, Status, useAction } from "@/components/team-ui";
+import { isFailure, linkButton, problemText, Status, useAction } from "@/components/team-ui";
 
 const heading = "font-display text-2xl font-extrabold tracking-tight";
 const date = (d: string | Date) => new Date(d).toLocaleDateString(undefined, { dateStyle: "medium" });
@@ -28,10 +28,10 @@ export function Sets() {
 
   if (me === null || me === "signed_out") return <p className="text-ink-soft">Checking your sign-in...</p>;
   if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
-  return <SetsPage canManage={manages(me.user.current_team.role)} hasPassword={me.user.has_password} />;
+  return <SetsPage canManage={manages(me.user.current_team.role)} />;
 }
 
-function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword: boolean }) {
+function SetsPage({ canManage }: { canManage: boolean }) {
   const [live, setLive] = useState<SocialSet[] | Failure | null>(null);
   const [deleted, setDeleted] = useState<SocialSet[] | Failure | null>(null);
   const [accounts, setAccounts] = useState<Connection[]>([]);
@@ -39,7 +39,6 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
   const [renaming, setRenaming] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
   const main = useAction();
   const bin = useAction();
   const buttons = useRef(new Map<string, HTMLElement>());
@@ -66,7 +65,6 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
       setRenaming(kind === "rename" && s ? s.id : null);
       setDeleting(kind === "delete" && s ? s.id : null);
       setNewName(s?.name ?? "");
-      setPassword("");
     });
     openRef.current?.focus();
   }
@@ -75,7 +73,6 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
     flushSync(() => {
       setRenaming(null);
       setDeleting(null);
-      setPassword("");
     });
     buttons.current.get(key)?.focus();
   }
@@ -100,11 +97,9 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
   }
 
   async function onDelete(s: SocialSet) {
-    const pw = password;
-    setPassword("");
     let gone = false;
     const call = async () => {
-      const r = await deleteSet(s.id, pw || undefined);
+      const r = await deleteSet(s.id);
       gone = r === "not_found";
       return r;
     };
@@ -121,9 +116,6 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
     } else if (!ok) openRef.current?.focus();
   }
 
-  const reauth = hasPassword
-    ? { reauth_required: <>That password didn&apos;t work, or you need a fresh sign-in. Check it, or {signInLink("sign in again")}.</> }
-    : {};
   const byId = new Map(accounts.map((a) => [a.id, a]));
 
   return (
@@ -155,7 +147,7 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
         ) : (
           <p className="text-ink-soft">Only team owners and admins can change sets.</p>
         )}
-        <Status problem={main.problem} done={main.done} overrides={reauth} />
+        <Status problem={main.problem} done={main.done} />
         {live === null ? (
           <p className="text-ink-soft">Loading sets...</p>
         ) : isFailure(live) ? (
@@ -217,31 +209,11 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
                         onDelete(s);
                       }}
                     >
-                      <p id={`delete-q-${s.id}`}>Delete {s.name}? You can restore it for 30 days.</p>
-                      {hasPassword && (
-                        <label htmlFor={`delete-pw-${s.id}`} className="grid gap-1 font-bold">
-                          Your password
-                          <input
-                            ref={(el) => {
-                              openRef.current = el;
-                            }}
-                            id={`delete-pw-${s.id}`}
-                            type="password"
-                            autoComplete="current-password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            aria-describedby={`delete-note-${s.id}`}
-                            className="rounded-full border-2 border-ink bg-paper px-4 py-2 font-normal"
-                          />
-                          <span id={`delete-note-${s.id}`} className="text-sm font-normal text-ink-soft">
-                            Not needed if you signed in within the last 10 minutes.
-                          </span>
-                        </label>
-                      )}
+                      <p id={`delete-q-${s.id}`}>Delete {s.name}? You can restore it for 30 days. This needs a sign-in from the last 10 minutes.</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-2">
                         <button
                           ref={(el) => {
-                            if (!hasPassword) openRef.current = el;
+                            openRef.current = el;
                           }}
                           type="submit"
                           className={linkButton}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { addPasskey, listPasskeys, removePasskey, setPassword } from "@/lib/auth";
+import { addPasskey, listPasskeys, removePasskey } from "@/lib/auth";
 import { fromBase64url, toBase64url } from "@/lib/webauthn";
 import { apiUrl } from "@/lib/waitlist";
 
@@ -9,21 +9,9 @@ const err = (status: number, error: string) => respond(status, { error });
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("setPassword", () => {
-  it("puts the password and current password to /auth/password with credentials", async () => {
-    const fetch = respond(204);
-    vi.stubGlobal("fetch", fetch);
-    expect(await setPassword("new password 1", "old password 1")).toBe("ok");
-    const [url, init] = fetch.mock.calls[0]!;
-    expect(url).toBe(`${apiUrl}/auth/password`);
-    expect(init).toMatchObject({ method: "PUT", credentials: "include" });
-    expect(JSON.parse(init.body)).toEqual({ password: "new password 1", current_password: "old password 1" });
-  });
-
+describe("error mapping", () => {
   it.each([
     [err(403, "reauth_required"), "reauth_required"],
-    [err(403, "invalid_current_password"), "invalid_current_password"],
-    [err(422, "invalid_password"), "invalid_password"],
     [err(429, "rate_limited"), "rate_limited"],
     [respond(429), "rate_limited"],
     [err(401, "unauthorized"), "signed_out"],
@@ -32,14 +20,14 @@ describe("setPassword", () => {
     [respond(500), "error"],
   ])("maps a failure to %#", async (fetch, result) => {
     vi.stubGlobal("fetch", fetch);
-    expect(await setPassword("x")).toBe(result);
+    expect(await removePasskey("k1")).toBe(result);
   });
 
   it("reports a network failure as error and a timeout as timeout", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
-    expect(await setPassword("x")).toBe("error");
+    expect(await removePasskey("k1")).toBe("error");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("slow", "TimeoutError")));
-    expect(await setPassword("x")).toBe("timeout");
+    expect(await removePasskey("k1")).toBe("timeout");
   });
 });
 
@@ -147,14 +135,12 @@ describe("addPasskey", () => {
     }
   });
 
-  it("sends the password to start only when given", async () => {
+  it("starts with an empty body and relies on a recent sign-in", async () => {
     stubBrowser(vi.fn());
     const fetch = vi.fn(async () => Response.json({ error: "reauth_required" }, { status: 403 }));
     vi.stubGlobal("fetch", fetch);
     expect(await addPasskey("")).toBe("reauth_required");
-    expect(await addPasskey("", "my password")).toBe("reauth_required");
     expect(JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toEqual({});
-    expect(JSON.parse((fetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string)).toEqual({ password: "my password" });
   });
 
   it("reports a browser without WebAuthn as unsupported", async () => {

@@ -23,8 +23,8 @@ export const listTeams = () => api<Team[]>("/v1/teams");
 export const createTeam = (name: string) => api<Team>("/v1/teams", "POST", { name });
 export const switchTeam = (teamId: string) => api<Team>("/v1/current-team", "PUT", { team_id: teamId });
 export const renameTeam = (name: string) => api<Team>("/v1/team", "PATCH", { name });
-// brain takes the password instead of a sign-in from the last 10 minutes.
-export const deleteTeam = (password?: string) => api("/v1/team", "DELETE", password ? { password } : {});
+// Needs a sign-in from the last 10 minutes, else brain answers reauth_required.
+export const deleteTeam = () => api("/v1/team", "DELETE", {});
 export const listMembers = () => api<Member[]>("/v1/team/members");
 export const setRole = (userId: string, role: Role) => api<Member>(`/v1/team/members/${enc(userId)}`, "PATCH", { role });
 // Removing yourself is leaving the team.

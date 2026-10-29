@@ -61,7 +61,8 @@ export function useAction() {
       setBusy(key);
     });
     const r = await call();
-    setBusy(null);
+    // Re-enable the buttons now, so a caller can move focus back onto one.
+    flushSync(() => setBusy(null));
     if (isFailure(r)) {
       setProblem(r);
       setFailedKey(key);

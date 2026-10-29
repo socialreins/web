@@ -9,7 +9,6 @@ export type User = {
   email: string;
   name: string;
   username: string | null;
-  has_password: boolean;
   current_team: Team;
 };
 export type MeResult = { user: User } | "signed_out" | "error";
@@ -61,8 +60,6 @@ export async function signOut(): Promise<boolean> {
 const codes = [
   "invalid_credentials",
   "reauth_required",
-  "invalid_current_password",
-  "invalid_password",
   "invalid_name",
   "invalid_challenge",
   "invalid_passkey",
@@ -122,16 +119,6 @@ const send = (method: string, body: unknown, ms = TIMEOUT_MS) =>
     signal: AbortSignal.timeout(ms),
   });
 
-// Sets the first password (needs a recent sign-in) or changes it (needs the current one).
-export async function setPassword(password: string, currentPassword?: string): Promise<"ok" | Failure> {
-  try {
-    const res = await fetch(`${apiUrl}/auth/password`, send("PUT", { password, current_password: currentPassword }));
-    return res.ok ? "ok" : await failure(res);
-  } catch (e) {
-    return caught(e);
-  }
-}
-
 export async function listPasskeys(): Promise<Passkey[] | Failure> {
   try {
     const res = await fetch(`${apiUrl}/auth/passkeys`, opts());
@@ -151,11 +138,11 @@ export async function removePasskey(id: string): Promise<"ok" | Failure> {
 }
 
 // Start, the device ceremony, then finish. A blank name becomes "Passkey" on the server.
-// brain takes the account password instead of a recent sign-in; a wrong one is also reauth_required.
-export async function addPasskey(name: string, password?: string): Promise<AddResult> {
+// Needs a sign-in from the last 10 minutes, else brain answers reauth_required.
+export async function addPasskey(name: string): Promise<AddResult> {
   if (typeof window === "undefined" || !window.PublicKeyCredential) return "unsupported";
   try {
-    const start = await fetch(`${apiUrl}/auth/passkeys/register/start`, send("POST", password === undefined ? {} : { password }));
+    const start = await fetch(`${apiUrl}/auth/passkeys/register/start`, send("POST", {}));
     if (!start.ok) return await failure(start);
     const { challenge_id, options } = (await start.json()) as { challenge_id: string; options: CreationOptionsJSON };
     let credential;
@@ -169,16 +156,6 @@ export async function addPasskey(name: string, password?: string): Promise<AddRe
     }
     const finish = await fetch(`${apiUrl}/auth/passkeys/register/finish`, send("POST", { challenge_id, credential, name }));
     return finish.ok ? ((await finish.json()) as Passkey) : await failure(finish);
-  } catch (e) {
-    return caught(e);
-  }
-}
-
-// brain answers the same 401 invalid_credentials for an unknown email, no password and a wrong one.
-export async function signInWithPassword(email: string, password: string): Promise<"ok" | Failure> {
-  try {
-    const res = await fetch(`${apiUrl}/auth/login`, send("POST", { email, password }));
-    return res.ok ? "ok" : await failure(res);
   } catch (e) {
     return caught(e);
   }
@@ -226,3 +203,12 @@ export async function api<T = "ok">(path: string, method = "GET", body?: unknown
     return caught(e);
   }
 }
+
+// Sign-in methods this brain offers besides email links and passkeys; self-hosters may skip Google.
+export async function getProviders(): Promise<{ google: boolean }> {
+  const r = await api<{ google?: unknown }>("/auth/providers");
+  return { google: typeof r === "object" && r.google === true };
+}
+
+// A full-page navigation, not a fetch: brain sends the browser to Google and back to `next`.
+export const googleStartUrl = (next = "/app") => `${apiUrl}/auth/google/start?next=${encodeURIComponent(next)}`;

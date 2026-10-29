@@ -33,7 +33,7 @@ const features = [
   },
   {
     title: "Teams",
-    body: "Invite people as admins or members. Passkeys, passwords and email links for sign-in.",
+    body: "Invite people as admins or members. Sign in with Google, an email link or a passkey.",
   },
   {
     title: "Built for AI agents",
@@ -167,9 +167,17 @@ export default function Home() {
           <LogoMark className="size-6" />
           Built by Bytech
         </span>
-        <a href={repo} className={headerLink}>
-          SocialReins on GitHub
-        </a>
+        <span className="flex flex-wrap gap-x-6 gap-y-2">
+          <Link href="/privacy" className={headerLink}>
+            Privacy
+          </Link>
+          <Link href="/terms" className={headerLink}>
+            Terms
+          </Link>
+          <a href={repo} className={headerLink}>
+            SocialReins on GitHub
+          </a>
+        </span>
       </footer>
     </div>
   );

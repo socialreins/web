@@ -6,7 +6,7 @@ const me = (role: Role) => ({
   email: "me@example.com",
   name: "Me",
   username: null,
-  has_password: true,
+
   current_team: { id: "t1", name: "Acme", role },
 });
 const alice = {

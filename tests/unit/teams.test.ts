@@ -41,12 +41,8 @@ describe("team requests", () => {
     expect(JSON.parse(init.body as string)).toEqual(body);
   });
 
-  it("deletes the team with the password, or an empty body", async () => {
-    let fetch = reply(204);
-    vi.stubGlobal("fetch", fetch);
-    expect(await deleteTeam("pw")).toBe("ok");
-    expect(JSON.parse(call(fetch)[1].body as string)).toEqual({ password: "pw" });
-    fetch = reply(204);
+  it("deletes the team with an empty body, relying on a recent sign-in", async () => {
+    const fetch = reply(204);
     vi.stubGlobal("fetch", fetch);
     expect(await deleteTeam()).toBe("ok");
     expect(JSON.parse(call(fetch)[1].body as string)).toEqual({});
