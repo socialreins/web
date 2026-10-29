@@ -77,6 +77,9 @@ const codes = [
   "already_invited",
   "mail_failed",
   "email_mismatch",
+  "invalid_handle",
+  "unsupported_pds",
+  "bluesky_unreachable",
 ] as const;
 export type Failure = (typeof codes)[number] | "rate_limited" | "signed_out" | "timeout" | "error";
 export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };

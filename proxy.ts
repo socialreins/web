@@ -10,7 +10,8 @@ const csp = (api: string) =>
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
+    // Bluesky avatars; components/connections.tsx only renders images from this host.
+    "img-src 'self' data: https://cdn.bsky.app",
     "font-src 'self'",
     `connect-src 'self' ${api}${dev ? " ws:" : ""}`,
     "object-src 'none'",
