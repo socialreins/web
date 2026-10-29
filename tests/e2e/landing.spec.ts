@@ -21,3 +21,11 @@ test("landing page renders and the waitlist form joins", async ({ page }) => {
   await page.getByRole("button", { name: "Join the waitlist" }).click();
   await expect(page.getByRole("status")).toHaveText(/on the waitlist/);
 });
+
+test("the header GitHub menu shows the GitHub mark", async ({ page }) => {
+  await page.route("**/auth/me", (route) => route.fulfill({ status: 401, json: { error: "unauthorized" } }));
+  await page.goto("/");
+  const summary = page.getByRole("banner").locator("summary");
+  await expect(summary).toContainText("GitHub");
+  await expect(summary.locator("svg")).toHaveCount(1);
+});

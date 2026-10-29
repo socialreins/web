@@ -8,7 +8,7 @@ import { WaitlistForm } from "@/components/waitlist-form";
 
 const repo = "https://github.com/socialreins/web";
 
-const headerLink = "font-bold underline decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep";
+const headerLink = "whitespace-nowrap font-bold underline decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep";
 
 const features = [
   {
@@ -50,13 +50,17 @@ docker compose up -d`;
 export default function Home() {
   return (
     <div className="mx-auto max-w-6xl px-5 sm:px-8">
-      <header className="flex items-center justify-between py-6">
+      <header className="flex items-center justify-between gap-3 py-6">
         <Link href="/" className="flex items-center gap-2.5 font-display text-xl font-extrabold tracking-tight">
           <LogoMark className="size-9" />
           SocialReins
         </Link>
-        <nav aria-label="Site" className="flex items-center gap-6">
-          <GitHubRepos label="GitHub" summaryClassName={headerLink} />
+        <nav aria-label="Site" className="flex items-center gap-4 sm:gap-6">
+          <GitHubRepos
+            label="GitHub"
+            showTotal
+            summaryClassName="rounded-full border-2 border-ink px-3.5 py-1.5 font-bold hover:bg-ink hover:text-paper"
+          />
           <SessionLink className={headerLink} />
         </nav>
       </header>
