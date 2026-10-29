@@ -157,6 +157,7 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
                     <SetsEditor
                       connection={c}
                       sets={sets}
+                      onStale={() => listSets().then(setSets)}
                       onSaved={(updated) => setList((l) => (Array.isArray(l) ? l.map((x) => (x.id === updated.id ? updated : x)) : l))}
                     />
                   )}
@@ -213,10 +214,12 @@ function SetsEditor({
   connection: c,
   sets,
   onSaved,
+  onStale,
 }: {
   connection: Connection;
   sets: SocialSet[];
   onSaved: (c: Connection) => void;
+  onStale: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [checked, setChecked] = useState<string[]>(c.set_ids);
@@ -236,7 +239,13 @@ function SetsEditor({
   async function onSave(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const ids = sets.filter((s) => s.is_default || checked.includes(s.id)).map((s) => s.id);
-    await run("sets", () => setAccountSets(c.id, ids), (updated) => {
+    const call = async () => {
+      const r = await setAccountSets(c.id, ids);
+      // A set was deleted meanwhile: reload them so the checkboxes match what is left.
+      if (r === "invalid_sets") onStale();
+      return r;
+    };
+    await run("sets", call, (updated) => {
       onSaved(updated);
       setOpen(false);
       return `Sets saved for ${name}.`;

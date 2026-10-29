@@ -104,12 +104,19 @@ test("rename the Default set", async ({ page }) => {
   let body: unknown;
   await page.route("**/v1/social-sets/d", (route) => {
     body = route.request().postDataJSON();
-    return route.fulfill({ json: set("d", "Everything", ["c1", "c2"]) });
+    return body && (body as { name: string }).name === "Clients"
+      ? route.fulfill({ status: 409, json: { error: "name_taken" } })
+      : route.fulfill({ json: set("d", "Everything", ["c1", "c2"]) });
   });
   await page.goto("/app/sets");
   await page.getByRole("button", { name: "Rename Default" }).click();
   const input = page.getByLabel("New name for Default");
   await expect(input).toBeFocused();
+  await input.fill("Clients");
+  await page.getByRole("button", { name: "Save name" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "already has that name" })).toBeVisible();
+  // The failure belongs to the rename, so the create field stays unmarked.
+  await expect(page.getByLabel("New set name")).not.toHaveAttribute("aria-invalid");
   await input.fill("Everything");
   await page.getByRole("button", { name: "Save name" }).click();
   await expect(page.getByText("Renamed to Everything.")).toBeFocused();
@@ -130,8 +137,12 @@ test("delete asks first, needs the password or a fresh sign-in, then moves the s
   await page.goto("/app/sets");
   await page.getByRole("button", { name: "Delete Clients" }).click();
   await expect(page.getByLabel("Your password")).toBeFocused();
+  await page.getByLabel("Your password").fill("typed then cancelled");
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("button", { name: "Delete Clients" })).toBeFocused();
+  await page.getByRole("button", { name: "Delete Clients" }).click();
+  await expect(page.getByLabel("Your password")).toHaveValue("");
+  await page.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "Delete Clients" }).click();
   await expect(page.getByRole("button", { name: "Yes, delete" })).toHaveAccessibleDescription(/Delete Clients\?/);
   await page.getByRole("button", { name: "Yes, delete" }).click();
@@ -139,10 +150,26 @@ test("delete asks first, needs the password or a fresh sign-in, then moves the s
   await expect(reauth).toBeVisible();
   await expect(reauth.getByRole("link", { name: "sign in again" })).toHaveAttribute("href", "/login");
   await page.getByLabel("Your password").fill("secret");
-  await page.getByRole("button", { name: "Yes, delete" }).click();
+  await page.getByLabel("Your password").press("Enter");
   await expect(page.getByText("Deleted Clients. You can restore it for 30 days.")).toBeFocused();
   await expect(page.getByRole("button", { name: "Restore Clients" })).toBeVisible();
   expect(bodies).toEqual([{}, { password: "secret" }]);
+});
+
+test("deleting a set that is already gone closes the confirm and reloads", async ({ page }) => {
+  const state = await brain(page, "owner");
+  await page.route("**/v1/social-sets/s1", (route) => {
+    const [gone] = state.live.splice(1, 1);
+    state.deleted.unshift({ ...gone!, deleted_at: new Date().toISOString() });
+    return route.fulfill({ status: 404, json: { error: "not_found" } });
+  });
+  await page.goto("/app/sets");
+  await page.getByRole("button", { name: "Delete Clients" }).click();
+  await page.getByRole("button", { name: "Yes, delete" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "no longer there" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sets", level: 2 })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Yes, delete" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Restore Clients" })).toBeVisible();
 });
 
 test("restore explains a taken name and the cap, then restores", async ({ page }) => {
@@ -182,6 +209,11 @@ test("a member sees sets read-only", async ({ page }) => {
 test("connections edits an account's sets with Default locked", async ({ page }) => {
   const state = await brain(page, "owner");
   const bodies: unknown[] = [];
+  let setLoads = 0;
+  await page.route(/\/v1\/social-sets$/, (route) => {
+    setLoads++;
+    return route.fallback();
+  });
   await page.route("**/v1/connections/c2/sets", (route) => {
     bodies.push(route.request().postDataJSON());
     if (bodies.length === 1) return route.fulfill({ status: 422, json: { error: "invalid_sets" } });
@@ -198,6 +230,7 @@ test("connections edits an account's sets with Default locked", async ({ page })
   await group.getByRole("checkbox", { name: "Clients" }).check();
   await page.getByRole("button", { name: "Save sets" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "no longer exists" })).toBeVisible();
+  await expect.poll(() => setLoads).toBe(2);
   await page.getByRole("button", { name: "Save sets" }).click();
   await expect(page.getByText("Sets saved for Bob.")).toBeFocused();
   await expect(page.getByText(/Sets: Default, Clients\./)).toHaveCount(2);

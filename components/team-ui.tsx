@@ -49,11 +49,14 @@ export function useAction() {
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<Failure | null>(null);
   const [done, setDone] = useState<{ text: string; n: number } | null>(null);
+  // Which action the current problem came from, when one section runs several.
+  const [failedKey, setFailedKey] = useState<string | null>(null);
 
   async function run<T>(key: string, call: () => Promise<T | Failure>, onOk: (r: T) => string | void) {
     // Clear the old messages first so a repeated identical one is announced again.
     flushSync(() => {
       setProblem(null);
+      setFailedKey(null);
       setDone(null);
       setBusy(key);
     });
@@ -61,6 +64,7 @@ export function useAction() {
     setBusy(null);
     if (isFailure(r)) {
       setProblem(r);
+      setFailedKey(key);
       return false;
     }
     const text = onOk(r as T);
@@ -68,7 +72,7 @@ export function useAction() {
     return true;
   }
 
-  return { busy, problem, done, run };
+  return { busy, problem, failedKey, done, run };
 }
 
 export function Status({

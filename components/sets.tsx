@@ -44,6 +44,7 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
   const bin = useAction();
   const buttons = useRef(new Map<string, HTMLElement>());
   const openRef = useRef<HTMLInputElement | HTMLButtonElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   const reload = () => {
     listSets().then(setLive);
@@ -74,6 +75,7 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
     flushSync(() => {
       setRenaming(null);
       setDeleting(null);
+      setPassword("");
     });
     buttons.current.get(key)?.focus();
   }
@@ -100,12 +102,23 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
   async function onDelete(s: SocialSet) {
     const pw = password;
     setPassword("");
-    const ok = await main.run("delete", () => deleteSet(s.id, pw || undefined), () => {
+    let gone = false;
+    const call = async () => {
+      const r = await deleteSet(s.id, pw || undefined);
+      gone = r === "not_found";
+      return r;
+    };
+    const ok = await main.run("delete", call, () => {
       setDeleting(null);
       reload();
       return `Deleted ${s.name}. You can restore it for 30 days.`;
     });
-    if (!ok) openRef.current?.focus();
+    if (gone) {
+      // Deleted elsewhere: its confirm and buttons go, so focus the section heading; the alert says why.
+      flushSync(() => setDeleting(null));
+      reload();
+      headingRef.current?.focus();
+    } else if (!ok) openRef.current?.focus();
   }
 
   const reauth = hasPassword
@@ -116,7 +129,7 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
   return (
     <>
       <section aria-labelledby="sets-heading" className="grid gap-3">
-        <h2 id="sets-heading" className={heading}>
+        <h2 id="sets-heading" ref={headingRef} tabIndex={-1} className={heading}>
           Sets
         </h2>
         <p className="text-ink-soft">Sets group connected accounts. Every account is always in the Default set.</p>
@@ -130,7 +143,9 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
                 maxLength={60}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                aria-invalid={main.problem === "name_taken" || main.problem === "invalid_name" || undefined}
+                aria-invalid={
+                  (main.failedKey === "create" && (main.problem === "name_taken" || main.problem === "invalid_name")) || undefined
+                }
               />
               <button type="submit" disabled={main.busy !== null}>
                 {main.busy === "create" ? "Creating..." : "Create set"}
@@ -195,7 +210,13 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
                     </form>
                   )}
                   {canManage && deleting === s.id && (
-                    <div className="grid gap-2">
+                    <form
+                      className="grid gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        onDelete(s);
+                      }}
+                    >
                       <p id={`delete-q-${s.id}`}>Delete {s.name}? You can restore it for 30 days.</p>
                       {hasPassword && (
                         <label htmlFor={`delete-pw-${s.id}`} className="grid gap-1 font-bold">
@@ -222,11 +243,10 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
                           ref={(el) => {
                             if (!hasPassword) openRef.current = el;
                           }}
-                          type="button"
+                          type="submit"
                           className={linkButton}
                           aria-describedby={`delete-q-${s.id}`}
                           disabled={main.busy !== null}
-                          onClick={() => onDelete(s)}
                         >
                           {main.busy === "delete" ? "Deleting..." : "Yes, delete"}
                         </button>
@@ -234,7 +254,7 @@ function SetsPage({ canManage, hasPassword }: { canManage: boolean; hasPassword:
                           Cancel
                         </button>
                       </div>
-                    </div>
+                    </form>
                   )}
                   {canManage && renaming !== s.id && deleting !== s.id && (
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
