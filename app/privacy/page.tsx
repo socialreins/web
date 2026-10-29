@@ -59,7 +59,7 @@ export default function Privacy() {
       <h2>Who helps us run it</h2>
       <p>
         The hosted service runs on providers that process data for us only to run SocialReins: Railway hosts the servers
-        and database, and Resend sends sign-in and invitation emails. When you publish, your post goes to the platform you
+        and database, Cloudflare carries traffic to them, and Resend sends sign-in and invitation emails. When you publish, your post goes to the platform you
         chose, such as Bluesky, under that platform&apos;s own terms.
       </p>
 
