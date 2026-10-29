@@ -20,9 +20,8 @@ const enc = encodeURIComponent;
 export const listSets = (deleted = false) => api<SocialSet[]>(`/v1/social-sets${deleted ? "?deleted=true" : ""}`);
 export const createSet = (name: string) => api<SocialSet>("/v1/social-sets", "POST", { name });
 export const renameSet = (id: string, name: string) => api<SocialSet>(`/v1/social-sets/${enc(id)}`, "PATCH", { name });
-// brain takes the password instead of a sign-in from the last 10 minutes.
-export const deleteSet = (id: string, password?: string) =>
-  api(`/v1/social-sets/${enc(id)}`, "DELETE", password ? { password } : {});
+// Needs a sign-in from the last 10 minutes, else brain answers reauth_required.
+export const deleteSet = (id: string) => api(`/v1/social-sets/${enc(id)}`, "DELETE", {});
 export const restoreSet = (id: string) => api<SocialSet>(`/v1/social-sets/${enc(id)}/restore`, "POST");
 export const setAccountSets = (connectionId: string, setIds: string[]) =>
   api<Connection>(`/v1/connections/${enc(connectionId)}/sets`, "PUT", { set_ids: setIds });

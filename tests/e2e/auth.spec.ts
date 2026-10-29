@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const user = { id: "1", email: "someone@example.com", name: "someone", username: null, has_password: false };
+const user = { id: "1", email: "someone@example.com", name: "someone", username: null };
 
 test("login sends a link and shows the check-your-email state", async ({ page }) => {
   let body: unknown;
@@ -10,7 +10,7 @@ test("login sends a link and shows the check-your-email state", async ({ page })
   });
   await page.goto("/login");
   await page.getByLabel("Email").fill("someone@example.com");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
+  await page.getByRole("button", { name: "Email me a link" }).click();
   const done = page.getByRole("heading", { name: "Check your email" });
   await expect(done).toBeFocused();
   expect(body).toEqual({ email: "someone@example.com" });
@@ -30,14 +30,14 @@ test("login explains rate limits and bad links", async ({ page }) => {
 test("login shows a generic message for an unknown or prototype-named error", async ({ page }) => {
   for (const error of ["__proto__", "constructor", "something_new"]) {
     await page.goto(`/login?error=${error}`);
-    await expect(page.getByText("That sign-in link didn't work. Ask for a new one below.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeVisible();
+    await expect(page.getByText("That sign-in didn't work. Try again, or ask for an email link below.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Email me a link" })).toBeVisible();
   }
 });
 
 test("login form is in the server-rendered HTML", async ({ request }) => {
   const html = await (await request.get("/login")).text();
-  expect(html).toContain("Email me a sign-in link");
+  expect(html).toContain("Email me a link");
 });
 
 test("app shows the signed-in user and signs out", async ({ page }) => {

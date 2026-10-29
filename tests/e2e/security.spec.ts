@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const user = { id: "1", email: "someone@example.com", name: "someone", username: null, has_password: false };
+const user = { id: "1", email: "someone@example.com", name: "someone", username: null };
 const key = { id: "k1", name: "Old phone", created_at: "2026-10-01T10:00:00Z", last_used_at: null };
 const signedIn = (page: Page, passkeys: unknown[] = []) =>
   Promise.all([
@@ -11,52 +11,16 @@ const signedIn = (page: Page, passkeys: unknown[] = []) =>
 test("app links to the security page", async ({ page }) => {
   await signedIn(page);
   await page.goto("/app");
-  await page.getByRole("link", { name: "Password and passkeys" }).click();
+  await page.getByRole("link", { name: "Passkeys", exact: true }).click();
   await expect(page).toHaveURL("/app/security");
-  await expect(page.getByRole("heading", { name: "Password and passkeys" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Passkeys", level: 1 })).toBeVisible();
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
 });
 
 test("security sends a signed-out visitor to login", async ({ page }) => {
   await page.route("**/auth/me", (route) => route.fulfill({ status: 401, json: { error: "unauthorized" } }));
   await page.goto("/app/security");
   await expect(page).toHaveURL("/login");
-});
-
-test("set a first password, then the form asks for the current one", async ({ page }) => {
-  await signedIn(page);
-  const bodies: unknown[] = [];
-  let reply: { status: number; json?: unknown } = { status: 403, json: { error: "reauth_required" } };
-  await page.route("**/auth/password", (route) => {
-    bodies.push(route.request().postDataJSON());
-    return route.fulfill(reply);
-  });
-  await page.goto("/app/security");
-  await page.getByLabel("New password").fill("a long new password");
-  await page.getByRole("button", { name: "Set password" }).click();
-  const alert = page.getByRole("alert").filter({ hasText: "needs a fresh sign-in" });
-  await expect(alert).toBeVisible();
-  await expect(alert.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login");
-
-  reply = { status: 204 };
-  await page.getByRole("button", { name: "Set password" }).click();
-  await expect(page.getByText("Password saved.", { exact: false })).toBeFocused();
-  expect(bodies[1]).toEqual({ password: "a long new password" });
-  await expect(page.getByLabel("Current password")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Change password" })).toBeVisible();
-});
-
-test("wrong current password is explained", async ({ page }) => {
-  await page.route("**/auth/me", (route) => route.fulfill({ json: { ...user, has_password: true } }));
-  await page.route("**/auth/passkeys", (route) => route.fulfill({ json: [] }));
-  await page.route("**/auth/password", (route) =>
-    route.fulfill({ status: 403, json: { error: "invalid_current_password" } }),
-  );
-  await page.goto("/app/security");
-  await page.getByLabel("Current password").fill("wrong one");
-  await page.getByLabel("New password").fill("a long new password");
-  await page.getByRole("button", { name: "Change password" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "current password is wrong" })).toBeVisible();
-  await expect(page.getByLabel("Current password")).toHaveAttribute("aria-invalid", "true");
 });
 
 test("remove a passkey after confirming", async ({ page }) => {
@@ -128,7 +92,7 @@ test("add a passkey with a virtual authenticator", async ({ page, context }) => 
   expect(clientData).toMatchObject({ type: "webauthn.create", challenge: "3q2-7w" });
 });
 
-test("adding a passkey asks for the password when a fresh sign-in is needed, then reloads the list", async ({
+test("adding a passkey without a recent sign-in asks to sign in again, then reloads the list", async ({
   page,
   context,
 }) => {
@@ -137,7 +101,7 @@ test("adding a passkey asks for the password when a fresh sign-in is needed, the
   await cdp.send("WebAuthn.addVirtualAuthenticator", {
     options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true },
   });
-  await page.route("**/auth/me", (route) => route.fulfill({ json: { ...user, has_password: true } }));
+  await page.route("**/auth/me", (route) => route.fulfill({ json: { ...user } }));
   // The first load fails; after the add the reload returns both keys.
   let loads = 0;
   await page.route("**/auth/passkeys", (route) =>
@@ -145,9 +109,9 @@ test("adding a passkey asks for the password when a fresh sign-in is needed, the
   );
   const starts: unknown[] = [];
   await page.route("**/auth/passkeys/register/start", (route) => {
-    const body = route.request().postDataJSON();
-    starts.push(body);
-    if (!body.password) return route.fulfill({ status: 403, json: { error: "reauth_required" } });
+    starts.push(route.request().postDataJSON());
+    // The first try is too long after sign-in; the second follows a fresh sign-in.
+    if (starts.length === 1) return route.fulfill({ status: 403, json: { error: "reauth_required" } });
     return route.fulfill({
       json: {
         challenge_id: "c1",
@@ -170,15 +134,13 @@ test("adding a passkey asks for the password when a fresh sign-in is needed, the
   await page.goto("/app/security");
   await expect(page.getByText("Your passkeys couldn't be loaded.", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Add a passkey" }).click();
-  const alert = page.getByRole("alert").filter({ hasText: "enter your current password" });
+  const alert = page.getByRole("alert").filter({ hasText: "needs a fresh sign-in" });
   await expect(alert).toBeVisible();
-  await expect(alert.getByRole("link", { name: "sign in again" })).toHaveAttribute("href", "/login");
-  await expect(page.getByLabel("Confirm with your password")).toBeFocused();
-  await page.getByLabel("Confirm with your password").fill("my password");
+  await expect(alert.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login?next=%2Fapp%2Fsecurity");
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await page.getByRole("button", { name: "Add a passkey" }).click();
   await expect(page.getByText('Passkey "Work laptop" added.')).toBeFocused();
-  expect(starts).toEqual([{}, { password: "my password" }]);
+  expect(starts).toEqual([{}, {}]);
   await expect(page.getByText("Old phone")).toBeVisible();
   await expect(page.getByText("Work laptop", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Confirm with your password")).toBeHidden();
 });

@@ -6,7 +6,7 @@ const me = (role: Role) => ({
   email: "me@example.com",
   name: "Me",
   username: null,
-  has_password: true,
+
   current_team: { id: "t1", name: "Acme", role },
 });
 const account = (id: string, name: string) => ({
@@ -123,7 +123,7 @@ test("rename the Default set", async ({ page }) => {
   expect(body).toEqual({ name: "Everything" });
 });
 
-test("delete asks first, needs the password or a fresh sign-in, then moves the set to Recently deleted", async ({ page }) => {
+test("delete asks first, asks to sign in again when needed, then moves the set to Recently deleted", async ({ page }) => {
   const state = await brain(page, "owner");
   const bodies: unknown[] = [];
   await page.route("**/v1/social-sets/s1", (route) => {
@@ -136,24 +136,22 @@ test("delete asks first, needs the password or a fresh sign-in, then moves the s
   });
   await page.goto("/app/sets");
   await page.getByRole("button", { name: "Delete Clients" }).click();
-  await expect(page.getByLabel("Your password")).toBeFocused();
-  await page.getByLabel("Your password").fill("typed then cancelled");
+  const yes = page.getByRole("button", { name: "Yes, delete" });
+  await expect(yes).toBeFocused();
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("button", { name: "Delete Clients" })).toBeFocused();
   await page.getByRole("button", { name: "Delete Clients" }).click();
-  await expect(page.getByLabel("Your password")).toHaveValue("");
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await page.getByRole("button", { name: "Delete Clients" }).click();
-  await expect(page.getByRole("button", { name: "Yes, delete" })).toHaveAccessibleDescription(/Delete Clients\?/);
-  await page.getByRole("button", { name: "Yes, delete" }).click();
-  const reauth = page.getByRole("alert").filter({ hasText: "you need a fresh sign-in" });
+  await expect(yes).toHaveAccessibleDescription(/Delete Clients\?/);
+  await yes.click();
+  const reauth = page.getByRole("alert").filter({ hasText: "needs a fresh sign-in" });
   await expect(reauth).toBeVisible();
-  await expect(reauth.getByRole("link", { name: "sign in again" })).toHaveAttribute("href", "/login");
-  await page.getByLabel("Your password").fill("secret");
-  await page.getByLabel("Your password").press("Enter");
+  await expect(reauth.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login?next=%2Fapp%2Fsets");
+  await expect(yes).toBeFocused();
+  await yes.press("Enter");
   await expect(page.getByText("Deleted Clients. You can restore it for 30 days.")).toBeFocused();
   await expect(page.getByRole("button", { name: "Restore Clients" })).toBeVisible();
-  expect(bodies).toEqual([{}, { password: "secret" }]);
+  expect(bodies).toEqual([{}, {}]);
 });
 
 test("deleting a set that is already gone closes the confirm and reloads", async ({ page }) => {

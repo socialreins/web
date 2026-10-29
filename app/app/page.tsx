@@ -14,7 +14,7 @@ export default function AppHome() {
         Posts
       </Link>
       <Link href="/app/security" className="justify-self-start font-bold underline decoration-signal decoration-2 underline-offset-4">
-        Password and passkeys
+        Passkeys
       </Link>
       <Link href="/app/connections" className="justify-self-start font-bold underline decoration-signal decoration-2 underline-offset-4">
         Connected accounts

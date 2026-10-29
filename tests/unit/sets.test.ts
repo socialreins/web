@@ -34,8 +34,7 @@ describe("set requests", () => {
   it.each([
     ["createSet", () => createSet("Clients"), "/v1/social-sets", "POST", { name: "Clients" }],
     ["renameSet", () => renameSet("s/1", "Clients"), "/v1/social-sets/s%2F1", "PATCH", { name: "Clients" }],
-    ["deleteSet with password", () => deleteSet("s1", "pw"), "/v1/social-sets/s1", "DELETE", { password: "pw" }],
-    ["deleteSet without", () => deleteSet("s1"), "/v1/social-sets/s1", "DELETE", {}],
+    ["deleteSet", () => deleteSet("s1"), "/v1/social-sets/s1", "DELETE", {}],
     ["setAccountSets", () => setAccountSets("c1", ["d", "s1"]), "/v1/connections/c1/sets", "PUT", { set_ids: ["d", "s1"] }],
   ] as const)("%s sends JSON", async (_, run, path, method, body) => {
     const fetch = reply(200, {});

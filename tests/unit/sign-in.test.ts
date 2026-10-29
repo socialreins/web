@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { signInWithPasskey, signInWithPassword } from "@/lib/auth";
+import { getProviders, googleStartUrl, safeNext, signInWithPasskey } from "@/lib/auth";
 import { apiUrl } from "@/lib/waitlist";
 
 const reply = (status: number, error?: string) =>
@@ -8,31 +8,75 @@ const call = (fetch: ReturnType<typeof vi.fn>, i: number) => fetch.mock.calls[i]
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("signInWithPassword", () => {
-  it("posts email and password to /auth/login with credentials", async () => {
-    const fetch = vi.fn(async () => Response.json({ id: "1" }));
+describe("getProviders", () => {
+  it("reads /auth/providers with credentials", async () => {
+    const fetch = vi.fn(async () => Response.json({ google: true }));
     vi.stubGlobal("fetch", fetch);
-    expect(await signInWithPassword("a@b.co", "secret")).toBe("ok");
-    const [url, init] = call(fetch, 0);
-    expect(url).toBe(`${apiUrl}/auth/login`);
-    expect(init).toMatchObject({ method: "POST", credentials: "include" });
-    expect(JSON.parse(init.body as string)).toEqual({ email: "a@b.co", password: "secret" });
+    expect(await getProviders()).toEqual({ google: true });
+    expect(call(fetch, 0)[0]).toBe(`${apiUrl}/auth/providers`);
+    expect(call(fetch, 0)[1]).toMatchObject({ credentials: "include" });
+  });
+
+  it("treats anything but google: true as no Google, without retrying an answer", async () => {
+    for (const fetch of [
+      vi.fn(async () => Response.json({ google: false })),
+      vi.fn(async () => Response.json({ google: "yes" })),
+      vi.fn(async () => Response.json({})),
+      reply(500),
+    ]) {
+      vi.stubGlobal("fetch", fetch);
+      expect(await getProviders(0)).toEqual({ google: false });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("retries a network failure once", async () => {
+    let fetch = vi.fn().mockRejectedValueOnce(new TypeError("offline")).mockResolvedValueOnce(Response.json({ google: true }));
+    vi.stubGlobal("fetch", fetch);
+    expect(await getProviders(0)).toEqual({ google: true });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    fetch = vi.fn().mockRejectedValue(new TypeError("offline"));
+    vi.stubGlobal("fetch", fetch);
+    expect(await getProviders(0)).toEqual({ google: false });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits 2 seconds before the retry by default", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockRejectedValueOnce(new TypeError("offline")).mockResolvedValueOnce(Response.json({ google: true }));
+    vi.stubGlobal("fetch", fetch);
+    const pending = getProviders();
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await pending).toEqual({ google: true });
+    vi.useRealTimers();
+  });
+
+});
+
+describe("googleStartUrl and safeNext", () => {
+  it("points the browser at brain with an encoded, safe next path", () => {
+    expect(googleStartUrl()).toBe(`${apiUrl}/auth/google/start?next=%2Fapp`);
+    expect(googleStartUrl("/invitations/abc?x=1")).toBe(`${apiUrl}/auth/google/start?next=%2Finvitations%2Fabc%3Fx%3D1`);
+    expect(googleStartUrl("https://evil.com")).toBe(`${apiUrl}/auth/google/start?next=%2Fapp`);
   });
 
   it.each([
-    [401, "invalid_credentials", "invalid_credentials"],
-    [429, "rate_limited", "rate_limited"],
-    [403, "forbidden_origin", "error"],
-    [422, "invalid_body", "error"],
-    [500, undefined, "error"],
-  ])("maps %i %s to %s", async (status, code, result) => {
-    vi.stubGlobal("fetch", reply(status, code));
-    expect(await signInWithPassword("a@b.co", "x")).toBe(result);
-  });
-
-  it("reports a timeout", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("slow", "TimeoutError")));
-    expect(await signInWithPassword("a@b.co", "x")).toBe("timeout");
+    ["/invitations/abc", "/invitations/abc"],
+    ["/app/team", "/app/team"],
+    [null, "/app"],
+    ["", "/app"],
+    ["app", "/app"],
+    ["//evil.com", "/app"],
+    ["/a//evil.com", "/app"],
+    ["/\\evil.com", "/app"],
+    ["https://evil.com", "/app"],
+    ["/a b", "/app"],
+    ["/a\nb", "/app"],
+    ["/" + "a".repeat(600), "/app"],
+  ])("safeNext(%j) is %j", (raw, want) => {
+    expect(safeNext(raw)).toBe(want);
   });
 });
 

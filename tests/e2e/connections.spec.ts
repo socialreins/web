@@ -6,7 +6,7 @@ const me = (role: Role) => ({
   email: "me@example.com",
   name: "Me",
   username: null,
-  has_password: true,
+
   current_team: { id: "t1", name: "Acme", role },
 });
 const alice = {
@@ -184,4 +184,17 @@ test("a member sees the list read-only", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Disconnect/ })).toHaveCount(0);
   await expect(page.getByLabel("App password")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Add an account" })).toHaveCount(0);
+});
+
+test("disconnect asks to sign in again when brain needs it", async ({ page }) => {
+  await signedIn(page, "owner");
+  await page.route("**/v1/connections/c1", (route) => route.fulfill({ status: 403, json: { error: "reauth_required" } }));
+  await page.goto("/app/connections");
+  await page.getByRole("button", { name: "Disconnect Alice" }).click();
+  await page.getByRole("button", { name: "Yes, disconnect" }).click();
+  const alert = page.getByRole("alert").filter({ hasText: "needs a fresh sign-in" });
+  await expect(alert).toBeVisible();
+  await expect(alert.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login?next=%2Fapp%2Fconnections");
+  await expect(page.getByText("Alice", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Disconnect Alice" })).toBeFocused();
 });

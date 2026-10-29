@@ -53,3 +53,5 @@ body { margin: 0; font-family: var(--font-body); font-size: 1.0625rem; line-heig
 #waitlist-message:focus, #login-done:focus { outline: none; }
 #waitlist-message:focus-visible, #login-done:focus-visible { outline: 3px solid var(--color-signal-deep); outline-offset: 3px; }
 .waitlist-empty { margin: 0; }
+.legal h2 { font-family: var(--font-display, inherit); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; margin-top: 1rem; }
+.legal ul { list-style: disc; padding-left: 1.25rem; display: grid; gap: 0.35rem; }

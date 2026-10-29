@@ -19,7 +19,7 @@ import {
   type Invitation,
   type Member,
 } from "@/lib/teams";
-import { isFailure, linkButton, problemText, roleName, signInLink, Status, useAction } from "@/components/team-ui";
+import { isFailure, linkButton, problemText, roleName, Status, useAction } from "@/components/team-ui";
 
 const heading = "font-display text-2xl font-extrabold tracking-tight";
 const select = "rounded-full border-2 border-ink bg-paper px-4 py-2";
@@ -55,7 +55,7 @@ function TeamPage({ user }: { user: User }) {
       {manages(mine) && <Rename team={team} onRenamed={setTeam} />}
       <Members me={user} mine={mine} onChanged={() => setVersion((v) => v + 1)} />
       {manages(mine) && <Invitations version={version} />}
-      {mine === "owner" && <DeleteTeam team={team} hasPassword={user.has_password} />}
+      {mine === "owner" && <DeleteTeam team={team} />}
     </>
   );
 }
@@ -328,15 +328,14 @@ function Invitations({ version }: { version: number }) {
   );
 }
 
-function DeleteTeam({ team, hasPassword }: { team: Team; hasPassword: boolean }) {
+function DeleteTeam({ team }: { team: Team }) {
   const router = useRouter();
   const [typed, setTyped] = useState("");
-  const [password, setPassword] = useState("");
   const { busy, problem, done, run } = useAction();
 
   async function onDelete(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (await run("delete", () => deleteTeam(password || undefined), () => undefined)) router.push("/app");
+    if (await run("delete", deleteTeam, () => undefined)) router.push("/app");
   }
 
   return (
@@ -344,42 +343,20 @@ function DeleteTeam({ team, hasPassword }: { team: Team; hasPassword: boolean })
       <h2 id="delete-heading" className={heading}>
         Delete team
       </h2>
-      <p className="text-ink-soft">This removes the team, its members and its invitations. It can&apos;t be undone.</p>
+      <p className="text-ink-soft">
+        This removes the team, its members and its invitations. It can&apos;t be undone. For your safety it needs a sign-in
+        from the last 10 minutes.
+      </p>
       <form onSubmit={onDelete} className="waitlist">
         <label htmlFor="delete-confirm">Type {team.name} to confirm</label>
         <input id="delete-confirm" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
-        {hasPassword && (
-          <>
-            <label htmlFor="delete-password">Your password</label>
-            <input
-              id="delete-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              aria-describedby="delete-password-note"
-              aria-invalid={problem === "reauth_required" || undefined}
-            />
-            <p id="delete-password-note" className="waitlist-note">
-              Not needed if you signed in within the last 10 minutes.
-            </p>
-          </>
-        )}
         <div className="waitlist-row">
           <button type="submit" disabled={busy !== null || typed.trim() !== team.name}>
             {busy ? "Deleting..." : "Delete team"}
           </button>
         </div>
       </form>
-      <Status
-        problem={problem}
-        done={done}
-        overrides={
-          hasPassword
-            ? { reauth_required: <>That password didn&apos;t work, or you need a fresh sign-in. Check it, or {signInLink("sign in again")}.</> }
-            : {}
-        }
-      />
+      <Status problem={problem} done={done} />
     </section>
   );
 }
