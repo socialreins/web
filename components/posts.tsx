@@ -101,7 +101,11 @@ function PostsPage() {
   }, [month, setId]);
 
   useEffect(() => {
-    listPosts({ social_set_id: setId, status: "draft" }).then(setDrafts);
+    let live = true;
+    listPosts({ social_set_id: setId, status: "draft" }).then((r) => live && setDrafts(r));
+    return () => {
+      live = false;
+    };
   }, [setId]);
 
   const step = (by: number) => setMonth(({ y, m }) => ({ y: m + by < 0 ? y - 1 : m + by > 11 ? y + 1 : y, m: (m + by + 12) % 12 }));

@@ -1,4 +1,5 @@
 import { api, failure, request, type Failure } from "@/lib/auth";
+import { CONNECT_TIMEOUT_MS } from "@/lib/connections";
 
 export type PostStatus = "draft" | "scheduled" | "queued" | "published" | "failed" | "deleted";
 export type Target = {
@@ -57,7 +58,8 @@ export type DeleteResult = "ok" | Post | Failure | { takedownFailed: string };
 // "ok": a draft or scheduled post is gone. A Post: a published post was taken down. brain answers
 // a takedown it could not finish with 422 and a message saying what to do.
 export async function deletePost(id: string): Promise<DeleteResult> {
-  const res = await request(`/v1/posts/${enc(id)}`, "DELETE");
+  // A takedown calls Bluesky for every account, so it gets the connect timeout.
+  const res = await request(`/v1/posts/${enc(id)}`, "DELETE", undefined, CONNECT_TIMEOUT_MS);
   if (typeof res === "string") return res;
   if (res.status === 204) return "ok";
   if (res.ok) return ((await res.json().catch(() => null)) as Post | null) ?? "error";
