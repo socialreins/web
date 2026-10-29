@@ -141,6 +141,41 @@ test("disconnect asks first, then removes the account", async ({ page }) => {
   expect(method).toBe("DELETE");
 });
 
+test("disconnecting an account that is already gone moves focus to the heading", async ({ page }) => {
+  await signedIn(page, "owner");
+  await page.route("**/v1/connections/c1", (route) => route.fulfill({ status: 404, json: { error: "not_found" } }));
+  await page.goto("/app/connections");
+  await page.getByRole("button", { name: "Disconnect Alice" }).click();
+  await page.getByRole("button", { name: "Yes, disconnect" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "already disconnected" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connected accounts", level: 2 })).toBeFocused();
+  await expect(page.getByText("No accounts connected yet.")).toBeVisible();
+});
+
+test("a connect that times out reloads the list, since brain may still finish", async ({ page }) => {
+  // Make only the 30 second connect timeout fire at once; every other call keeps its real signal.
+  await page.addInitScript(() => {
+    const real = AbortSignal.timeout.bind(AbortSignal);
+    AbortSignal.timeout = (ms: number) =>
+      ms === 30_000 ? AbortSignal.abort(new DOMException("slow", "TimeoutError")) : real(ms);
+  });
+  const loads = await signedIn(page, "owner");
+  await page.goto("/app/connections");
+  await expect(page.getByText("Alice", { exact: true })).toBeVisible();
+  await page.getByLabel("Bluesky handle").fill("bob.bsky.social");
+  await page.getByLabel("App password").fill("abcd-efgh-ijkl-mnop");
+  await page.getByRole("button", { name: "Connect Bluesky" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "taking a long time" })).toBeVisible();
+  await expect(page.getByLabel("App password")).toHaveValue("");
+  await expect(page.getByText("@bob.bsky.social", { exact: true })).toBeVisible();
+  expect(loads.list).toBe(2);
+});
+
+test("the CSP allows only Bluesky's image path for avatars", async ({ request }) => {
+  const csp = (await request.get("/app/connections")).headers()["content-security-policy"];
+  expect(csp).toContain("img-src 'self' data: https://cdn.bsky.app/img/;");
+});
+
 test("a member sees the list read-only", async ({ page }) => {
   await signedIn(page, "member");
   await page.goto("/app/connections");

@@ -13,7 +13,10 @@ const reply = (status: number, body?: unknown) =>
   vi.fn(async () => (body === undefined ? new Response(null, { status }) : Response.json(body, { status })));
 const call = (fetch: ReturnType<typeof vi.fn>) => fetch.mock.calls[0] as unknown as [string, RequestInit];
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("connection requests", () => {
   it("lists connections and providers with credentials", async () => {
@@ -36,6 +39,15 @@ describe("connection requests", () => {
     expect(url).toBe(`${apiUrl}/v1/connections/bluesky`);
     expect(init).toMatchObject({ method: "POST", credentials: "include" });
     expect(JSON.parse(init.body as string)).toEqual({ handle: "alice.bsky.social", app_password: "abcd-efgh-ijkl-mnop" });
+  });
+
+  it("gives the connect call 30 seconds and other calls 10", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    vi.stubGlobal("fetch", reply(200, []));
+    await connectBluesky("a", "b");
+    expect(timeout).toHaveBeenLastCalledWith(30_000);
+    await listConnections();
+    expect(timeout).toHaveBeenLastCalledWith(10_000);
   });
 
   it.each([
@@ -80,7 +92,8 @@ describe("provider state", () => {
   it("only keeps avatars from Bluesky's CDN", () => {
     expect(safeAvatar("https://cdn.bsky.app/img/avatar/plain/x.jpg")).toBe("https://cdn.bsky.app/img/avatar/plain/x.jpg");
     expect(safeAvatar("https://cdn.bsky.app.evil.com/x.jpg")).toBeNull();
-    expect(safeAvatar("http://cdn.bsky.app/x.jpg")).toBeNull();
+    expect(safeAvatar("http://cdn.bsky.app/img/x.jpg")).toBeNull();
+    expect(safeAvatar("https://cdn.bsky.app/other/x.jpg")).toBeNull();
     expect(safeAvatar(null)).toBeNull();
   });
 });

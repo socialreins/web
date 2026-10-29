@@ -28,6 +28,7 @@ const connectMessages: Partial<Record<Failure, string>> = {
     "Bluesky didn't accept that password. Use an app password made in Bluesky settings, not your main Bluesky password.",
   unsupported_pds: "That account is hosted on a server SocialReins can't connect to.",
   bluesky_unreachable: "Bluesky couldn't be reached. Try again in a moment.",
+  timeout: "Bluesky is taking a long time to answer. The account may still connect, so check the list above before trying again.",
   rate_limited: "Too many connection attempts. Wait a while, then try again.",
   forbidden: "Only team owners and admins can connect or disconnect accounts.",
   not_found: "That account was already disconnected.",
@@ -56,6 +57,7 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
   const { busy, problem, done, run } = useAction();
   const disconnectRefs = useRef(new Map<string, HTMLButtonElement>());
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   const reload = () => listConnections().then(setList);
   useEffect(() => {
@@ -81,13 +83,15 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
     const ok = await run("disconnect", call, () => `${name} was disconnected.`);
     flushSync(() => setConfirming(null));
     if (ok || gone) setList((l) => (Array.isArray(l) ? l.filter((x) => x.id !== c.id) : l));
-    if (!ok) disconnectRefs.current.get(c.id)?.focus();
+    // Its button is gone with it, so focus moves to the section heading; the alert says why.
+    if (gone) headingRef.current?.focus();
+    else if (!ok) disconnectRefs.current.get(c.id)?.focus();
   }
 
   return (
     <>
       <section aria-labelledby="accounts-heading" className="grid gap-3">
-        <h2 id="accounts-heading" className={heading}>
+        <h2 id="accounts-heading" ref={headingRef} tabIndex={-1} className={heading}>
           Connected accounts
         </h2>
         <p className="text-ink-soft">Accounts connected to {team}.</p>
@@ -197,7 +201,13 @@ function AddAccount({ connected, onConnected }: { connected: Connection[]; onCon
     const password = appPassword;
     // The app password is only kept for the request: cleared before the answer arrives.
     setAppPassword("");
-    await run("connect", () => connectBluesky(handle.trim(), password), (c) => {
+    const call = async () => {
+      const r = await connectBluesky(handle.trim(), password);
+      // brain may finish after the browser stops waiting, so the list could hold the account.
+      if (r === "timeout") onConnected();
+      return r;
+    };
+    await run("connect", call, (c) => {
       onConnected();
       setHandle("");
       const known = connected.some((x) => x.id === c.id);

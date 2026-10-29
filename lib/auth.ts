@@ -18,8 +18,8 @@ const TIMEOUT_MS = 10_000;
 // The session cookie lives on the API host, so every call sends it with credentials.
 const opts = (init: RequestInit = {}): RequestInit => ({
   credentials: "include",
-  signal: AbortSignal.timeout(TIMEOUT_MS),
   ...init,
+  signal: init.signal ?? AbortSignal.timeout(TIMEOUT_MS),
 });
 
 // The API answers 202 for any valid email, so the reply never says whether an account exists.
@@ -95,8 +95,13 @@ async function failure(res: Response): Promise<Failure> {
 const caught = (e: unknown): Failure =>
   e instanceof DOMException && e.name === "TimeoutError" ? "timeout" : "error";
 
-const send = (method: string, body: unknown) =>
-  opts({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const send = (method: string, body: unknown, ms = TIMEOUT_MS) =>
+  opts({
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(ms),
+  });
 
 // Sets the first password (needs a recent sign-in) or changes it (needs the current one).
 export async function setPassword(password: string, currentPassword?: string): Promise<"ok" | Failure> {
@@ -181,9 +186,11 @@ export async function signInWithPasskey(): Promise<"ok" | Failure | "cancelled">
 }
 
 // One JSON call to brain: the parsed body on success ("ok" for 204), else the mapped failure.
-export async function api<T = "ok">(path: string, method = "GET", body?: unknown): Promise<T | Failure> {
+// `ms` raises the timeout for calls brain answers only after its own outbound requests.
+export async function api<T = "ok">(path: string, method = "GET", body?: unknown, ms = TIMEOUT_MS): Promise<T | Failure> {
   try {
-    const res = await fetch(`${apiUrl}${path}`, body === undefined ? opts({ method }) : send(method, body));
+    const init = body === undefined ? opts({ method, signal: AbortSignal.timeout(ms) }) : send(method, body, ms);
+    const res = await fetch(`${apiUrl}${path}`, init);
     if (!res.ok) return await failure(res);
     return (res.status === 204 ? "ok" : await res.json()) as T;
   } catch (e) {

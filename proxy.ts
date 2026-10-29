@@ -10,8 +10,8 @@ const csp = (api: string) =>
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    // Bluesky avatars; components/connections.tsx only renders images from this host.
-    "img-src 'self' data: https://cdn.bsky.app",
+    // Bluesky avatars; safeAvatar in lib/connections.ts keeps to the same prefix.
+    "img-src 'self' data: https://cdn.bsky.app/img/",
     "font-src 'self'",
     `connect-src 'self' ${api}${dev ? " ws:" : ""}`,
     "object-src 'none'",
