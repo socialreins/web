@@ -10,6 +10,9 @@ export default function AppHome() {
   return (
     <main className="mx-auto grid min-h-dvh max-w-xl content-center gap-4 px-5">
       <Account />
+      <Link href="/app/posts" className="justify-self-start font-bold underline decoration-signal decoration-2 underline-offset-4">
+        Posts
+      </Link>
       <Link href="/app/security" className="justify-self-start font-bold underline decoration-signal decoration-2 underline-offset-4">
         Password and passkeys
       </Link>

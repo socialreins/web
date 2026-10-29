@@ -86,16 +86,29 @@ const codes = [
   "default_set",
   "invalid_sets",
   "default_set_required",
+  "too_long",
+  "too_many_images",
+  "invalid_media",
+  "empty_post",
+  "invalid_set",
+  "unsupported_platform",
+  "too_many_posts",
+  "not_editable",
+  "not_deletable",
+  "publish_quota",
 ] as const;
 export type Failure = (typeof codes)[number] | "rate_limited" | "signed_out" | "timeout" | "error";
 export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };
 export type AddResult = Passkey | Failure | "cancelled" | "unsupported";
 
 // Sign-in failures are 401 with a code; any other 401 means the session is gone.
-async function failure(res: Response): Promise<Failure> {
-  if (res.status === 429) return "rate_limited";
+// A known code wins (a 429 can be publish_quota); any other 429 is a rate limit.
+export async function failure(res: Response): Promise<Failure> {
   const code: unknown = (await res.json().catch(() => null))?.error;
-  return codes.find((c) => c === code) ?? (res.status === 401 ? "signed_out" : "error");
+  const known = codes.find((c) => c === code);
+  if (known) return known;
+  if (res.status === 429) return "rate_limited";
+  return res.status === 401 ? "signed_out" : "error";
 }
 
 const caught = (e: unknown): Failure =>
@@ -186,6 +199,16 @@ export async function signInWithPasskey(): Promise<"ok" | Failure | "cancelled">
     }
     const finish = await fetch(`${apiUrl}/auth/passkeys/login/finish`, send("POST", { challenge_id, credential }));
     return finish.ok ? "ok" : await failure(finish);
+  } catch (e) {
+    return caught(e);
+  }
+}
+
+// One call to brain, for callers that read the raw response (e.g. an error body with extra fields).
+export async function request(path: string, method = "GET", body?: unknown, ms = TIMEOUT_MS): Promise<Response | Failure> {
+  try {
+    const init = body === undefined ? opts({ method, signal: AbortSignal.timeout(ms) }) : send(method, body, ms);
+    return await fetch(`${apiUrl}${path}`, init);
   } catch (e) {
     return caught(e);
   }
