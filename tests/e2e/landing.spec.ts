@@ -29,3 +29,13 @@ test("the header GitHub menu shows the GitHub mark", async ({ page }) => {
   await expect(summary).toContainText("GitHub");
   await expect(summary.locator("svg")).toHaveCount(1);
 });
+
+test("the web app manifest lists the home-screen icons", async ({ request }) => {
+  const manifest = await (await request.get("/manifest.webmanifest")).json();
+  expect(manifest.icons.map((i: { src: string }) => i.src)).toContain("/icon-512.png");
+  for (const src of ["/icon-192.png", "/icon-512.png"]) {
+    const res = await request.get(src);
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toBe("image/png");
+  }
+});
