@@ -80,6 +80,12 @@ const codes = [
   "invalid_handle",
   "unsupported_pds",
   "bluesky_unreachable",
+  "invalid_query",
+  "too_many_sets",
+  "name_taken",
+  "default_set",
+  "invalid_sets",
+  "default_set_required",
 ] as const;
 export type Failure = (typeof codes)[number] | "rate_limited" | "signed_out" | "timeout" | "error";
 export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };

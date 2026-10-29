@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getMe, type Failure, type MeResult } from "@/lib/auth";
 import {
@@ -14,6 +15,7 @@ import {
   type Connection,
   type Provider,
 } from "@/lib/connections";
+import { listSets, setAccountSets, setNames, type SocialSet } from "@/lib/sets";
 import { manages } from "@/lib/teams";
 import { PlatformIcon, platforms } from "@/components/platform-icons";
 import { isFailure, linkButton, problemText, Status, useAction } from "@/components/team-ui";
@@ -34,6 +36,21 @@ const connectMessages: Partial<Record<Failure, string>> = {
   not_found: "That account was already disconnected.",
 };
 
+export const accountName = (c: Connection) => c.display_name || (c.handle ? `@${c.handle}` : c.external_id);
+
+// The account's avatar from Bluesky's CDN, else its initial. Decorative: the name is always next to it.
+export function Avatar({ connection: c, size = "size-10" }: { connection: Connection; size?: string }) {
+  const avatar = safeAvatar(c.avatar_url);
+  return avatar ? (
+    // eslint-disable-next-line @next/next/no-img-element -- a remote avatar, no Next image loader configured
+    <img src={avatar} alt="" width={40} height={40} referrerPolicy="no-referrer" className={`${size} rounded-full`} />
+  ) : (
+    <span aria-hidden="true" className={`grid ${size} place-items-center rounded-full bg-canvas font-bold`}>
+      {accountName(c).replace(/^@/, "").charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
 // The session cookie is on the API host, invisible to Next server code, so the check runs here.
 export function Connections() {
   const router = useRouter();
@@ -53,6 +70,7 @@ export function Connections() {
 
 function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string }) {
   const [list, setList] = useState<Connection[] | Failure | null>(null);
+  const [sets, setSets] = useState<SocialSet[] | Failure | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const { busy, problem, done, run } = useAction();
   const disconnectRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -62,6 +80,7 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
   const reload = () => listConnections().then(setList);
   useEffect(() => {
     listConnections().then(setList);
+    listSets().then(setSets);
   }, []);
 
   useEffect(() => {
@@ -94,7 +113,12 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
         <h2 id="accounts-heading" ref={headingRef} tabIndex={-1} className={heading}>
           Connected accounts
         </h2>
-        <p className="text-ink-soft">Accounts connected to {team}.</p>
+        <p className="text-ink-soft">
+          Accounts connected to {team}.{" "}
+          <Link href="/app/sets" className={linkButton}>
+            Manage sets
+          </Link>
+        </p>
         <Status problem={problem} done={done} overrides={connectMessages} />
         {list === null ? (
           <p className="text-ink-soft">Loading accounts...</p>
@@ -108,19 +132,11 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
           <ul className="grid gap-2">
             {list.map((c) => {
               const platform = platformOf(c.provider);
-              const name = c.display_name || (c.handle ? `@${c.handle}` : c.external_id);
-              const avatar = safeAvatar(c.avatar_url);
+              const name = accountName(c);
               return (
                 <li key={c.id} className="grid gap-2 border-l-4 border-ink bg-paper px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {avatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- a remote avatar, no Next image loader configured
-                      <img src={avatar} alt="" width={40} height={40} referrerPolicy="no-referrer" className="size-10 rounded-full" />
-                    ) : (
-                      <span aria-hidden="true" className="grid size-10 place-items-center rounded-full bg-canvas font-bold">
-                        {name.replace(/^@/, "").charAt(0).toUpperCase()}
-                      </span>
-                    )}
+                    <Avatar connection={c} />
                     <div className="min-w-0">
                       <p className="flex items-center gap-2 font-bold">
                         {platform && (
@@ -132,10 +148,18 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
                       </p>
                       <p className="text-sm text-ink-soft">
                         {platform?.name ?? c.provider}
-                        {c.handle && c.display_name ? `, @${c.handle}` : ""}. Connected {date(c.created_at)}. Set: Default.
+                        {c.handle && c.display_name ? `, @${c.handle}` : ""}. Connected {date(c.created_at)}.
+                        {Array.isArray(sets) && ` Sets: ${setNames(c.set_ids, sets).join(", ")}.`}
                       </p>
                     </div>
                   </div>
+                  {canManage && Array.isArray(sets) && sets.length > 1 && (
+                    <SetsEditor
+                      connection={c}
+                      sets={sets}
+                      onSaved={(updated) => setList((l) => (Array.isArray(l) ? l.map((x) => (x.id === updated.id ? updated : x)) : l))}
+                    />
+                  )}
                   {canManage &&
                     (confirming === c.id ? (
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -181,6 +205,89 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
         <p className="text-ink-soft">Only team owners and admins can connect or disconnect accounts.</p>
       )}
     </>
+  );
+}
+
+// Checkboxes of the team's live sets for one account. Default stays checked: brain keeps every account in it.
+function SetsEditor({
+  connection: c,
+  sets,
+  onSaved,
+}: {
+  connection: Connection;
+  sets: SocialSet[];
+  onSaved: (c: Connection) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [checked, setChecked] = useState<string[]>(c.set_ids);
+  const { busy, problem, done, run } = useAction();
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const firstRef = useRef<HTMLInputElement>(null);
+  const name = accountName(c);
+
+  function show(next: boolean) {
+    flushSync(() => {
+      setOpen(next);
+      setChecked(c.set_ids);
+    });
+    (next ? firstRef : toggleRef).current?.focus();
+  }
+
+  async function onSave(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const ids = sets.filter((s) => s.is_default || checked.includes(s.id)).map((s) => s.id);
+    await run("sets", () => setAccountSets(c.id, ids), (updated) => {
+      onSaved(updated);
+      setOpen(false);
+      return `Sets saved for ${name}.`;
+    });
+  }
+
+  const firstEditable = sets.find((s) => !s.is_default)?.id;
+  return (
+    <div className="grid gap-2">
+      {open ? (
+        <form onSubmit={onSave} className="grid gap-2">
+          <fieldset className="grid gap-1">
+            <legend className="font-bold">Sets for {name}</legend>
+            {sets.map((s) => (
+              <label key={s.id} className="flex items-center gap-2">
+                <input
+                  ref={s.id === firstEditable ? firstRef : undefined}
+                  type="checkbox"
+                  checked={s.is_default || checked.includes(s.id)}
+                  disabled={s.is_default}
+                  onChange={(e) =>
+                    setChecked((ids) => (e.target.checked ? [...ids, s.id] : ids.filter((id) => id !== s.id)))
+                  }
+                />
+                {s.name}
+                {s.is_default && <span className="text-sm text-ink-soft">(every account stays here)</span>}
+              </label>
+            ))}
+          </fieldset>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <button type="submit" className={linkButton} disabled={busy !== null}>
+              {busy ? "Saving..." : "Save sets"}
+            </button>
+            <button type="button" className={linkButton} disabled={busy !== null} onClick={() => show(false)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          ref={toggleRef}
+          type="button"
+          className={`justify-self-start ${linkButton}`}
+          aria-label={`Edit sets for ${name}`}
+          onClick={() => show(true)}
+        >
+          Edit sets
+        </button>
+      )}
+      <Status problem={problem} done={done} />
+    </div>
   );
 }
 
