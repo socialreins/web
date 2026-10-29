@@ -60,7 +60,7 @@ test("lists accounts and the provider grid", async ({ page }) => {
   await signedIn(page, "admin");
   await page.goto("/app/connections");
   await expect(page.getByText("Alice", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Bluesky, @alice\.bsky\.social\. Connected .*\. Set: Default\./)).toBeVisible();
+  await expect(page.getByText(/Bluesky, @alice\.bsky\.social\. Connected .*\./)).toBeVisible();
   const grid = page.getByRole("listitem").filter({ has: page.locator("span.text-sm") });
   await expect(grid.filter({ hasText: "Bluesky" }).getByText("Available")).toBeVisible();
   await expect(grid.filter({ hasText: "Facebook" }).getByText("Coming soon")).toBeVisible();

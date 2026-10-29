@@ -14,7 +14,12 @@ export const signInLink = (text: string) => (
 const messages: Partial<Record<Failure, ReactNode>> = {
   forbidden: "Your role in this team can't do that.",
   not_found: "That is no longer there. Reload the page to see the latest.",
-  invalid_name: "Use a team name of 1 to 60 characters.",
+  invalid_name: "Use a name of 1 to 60 characters.",
+  name_taken: "Another set already has that name. Pick a different one.",
+  too_many_sets: "This team already has 50 sets, the most allowed. Delete one first.",
+  default_set: "The Default set can't be deleted.",
+  invalid_sets: "One of those sets no longer exists. Reload the page and try again.",
+  default_set_required: "Every account stays in the Default set.",
   invalid_role: "Pick one of the roles in the list.",
   invalid_email: "That email address doesn't look right. Check it and try again.",
   already_member: "That person is already in this team.",
@@ -44,11 +49,14 @@ export function useAction() {
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<Failure | null>(null);
   const [done, setDone] = useState<{ text: string; n: number } | null>(null);
+  // Which action the current problem came from, when one section runs several.
+  const [failedKey, setFailedKey] = useState<string | null>(null);
 
   async function run<T>(key: string, call: () => Promise<T | Failure>, onOk: (r: T) => string | void) {
     // Clear the old messages first so a repeated identical one is announced again.
     flushSync(() => {
       setProblem(null);
+      setFailedKey(null);
       setDone(null);
       setBusy(key);
     });
@@ -56,6 +64,7 @@ export function useAction() {
     setBusy(null);
     if (isFailure(r)) {
       setProblem(r);
+      setFailedKey(key);
       return false;
     }
     const text = onOk(r as T);
@@ -63,7 +72,7 @@ export function useAction() {
     return true;
   }
 
-  return { busy, problem, done, run };
+  return { busy, problem, failedKey, done, run };
 }
 
 export function Status({

@@ -16,6 +16,9 @@ export default function AppHome() {
       <Link href="/app/connections" className="justify-self-start font-bold underline decoration-signal decoration-2 underline-offset-4">
         Connected accounts
       </Link>
+      <Link href="/app/sets" className="justify-self-start font-bold underline decoration-signal decoration-2 underline-offset-4">
+        Sets
+      </Link>
       <TeamSwitcher />
       <h1 className="font-display text-4xl font-extrabold tracking-tight">The app is coming soon</h1>
       <p className="text-ink-soft">
