@@ -27,8 +27,8 @@ export async function GitHubRepos({
   showTotal?: boolean;
 }) {
   const stars = await getStars();
-  const known = stars.filter((n): n is number => n !== null);
-  const total = known.length ? known.reduce((a, b) => a + b, 0) : null;
+  // A partial sum would look like lost stars, so the total waits until every count loads.
+  const total = stars.every((n) => n !== null) ? stars.reduce<number>((a, b) => a + (b ?? 0), 0) : null;
 
   return (
     <details className="group relative inline-block">
