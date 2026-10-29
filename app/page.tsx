@@ -13,18 +13,22 @@ const headerLink = "font-bold underline decoration-signal decoration-2 underline
 const features = [
   {
     title: "Publish and schedule",
+    soon: true,
     body: "Write once and send it to every account in a set, now or at a time you pick.",
   },
   {
     title: "A caption for each platform",
+    soon: true,
     body: "Give X a short line, LinkedIn a longer one and a PDF, and the rest your images, in one post.",
   },
   {
     title: "Take posts down everywhere",
+    soon: true,
     body: "Pull a published post back from every platform it went out on, in one step.",
   },
   {
     title: "Sets and lists",
+    soon: true,
     body: "Group accounts into sets, like one per language or brand, and posts into ordered lists.",
   },
   {
@@ -33,12 +37,14 @@ const features = [
   },
   {
     title: "Built for AI agents",
+    soon: true,
     body: "A REST API and an MCP server let your agents post for you, limited to the sets you choose.",
   },
 ];
 
 const compose = `git clone https://github.com/socialreins/web
 cd web && cp .env.example .env
+# edit .env: POSTGRES_PASSWORD, BRAIN_URL, WEB_URL
 docker compose up -d`;
 
 export default function Home() {
@@ -61,14 +67,15 @@ export default function Home() {
             <p className="flex flex-wrap gap-2 text-sm font-bold">
               <span className="rounded-full bg-ink px-3 py-1 text-paper">Open source</span>
               <span className="rounded-full border-2 border-ink px-3 py-0.5">Self-hostable</span>
+              <span className="rounded-full border-2 border-signal-deep px-3 py-0.5 text-signal-deep">In development</span>
             </p>
             <h1 className="font-display text-[clamp(2.6rem,7vw,4.9rem)] leading-[0.95] font-extrabold tracking-[-0.03em]">
               Every social account, one set of reins.
             </h1>
             <p className="max-w-[34rem] text-lg text-ink-soft">
-              SocialReins publishes and schedules your posts to eight platforms from one place, and pulls a post
-              back from all of them when you need to. Run it on your own server, or join the waitlist for the hosted
-              version.
+              SocialReins is an open-source social media manager. It will publish and schedule your posts to eight
+              platforms from one place, and pull a post back from all of them when you need to. Sign-in, teams and
+              self-hosting work today; publishing comes next.
             </p>
             <WaitlistForm />
           </div>
@@ -77,7 +84,7 @@ export default function Home() {
 
         <section aria-labelledby="platforms-title" className="border-y-2 border-ink/10 py-8">
           <h2 id="platforms-title" className="text-sm font-bold tracking-wide text-ink-soft uppercase">
-            Posts to
+            Coming to
           </h2>
           <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:flex-wrap sm:justify-between">
             {platforms.map((p) => (
@@ -98,7 +105,14 @@ export default function Home() {
           <dl className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((f) => (
               <div key={f.title} className="rounded-3xl border border-ink/10 bg-paper p-6">
-                <dt className="font-display text-xl font-bold">{f.title}</dt>
+                <dt className="grid justify-items-start gap-3 font-display text-xl font-bold">
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 font-body text-xs font-bold ${f.soon ? "bg-canvas text-signal-deep" : "bg-ink text-paper"}`}
+                  >
+                    {f.soon ? "Coming soon" : "Live now"}
+                  </span>
+                  {f.title}
+                </dt>
                 <dd className="mt-2 text-ink-soft">{f.body}</dd>
               </div>
             ))}
@@ -114,7 +128,7 @@ export default function Home() {
               Run it yourself, or let us run it
             </h2>
             <p className="mt-4 max-w-[34rem] text-lg text-canvas">
-              SocialReins is open source. Three commands start it on your own server with Postgres, and every
+              SocialReins is open source. A few commands start it on your own server with Postgres, and every
               platform is optional. If you would rather not run servers, join the waitlist for the hosted version, a
               paid subscription coming later.
             </p>
