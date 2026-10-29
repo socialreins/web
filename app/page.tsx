@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GitHubRepos } from "@/components/github-repos";
 import { LogoMark } from "@/components/logo";
+import { PlatformIcon, platforms } from "@/components/platform-icons";
 import { Reins } from "@/components/reins";
 import { SessionLink } from "@/components/session-link";
 import { WaitlistForm } from "@/components/waitlist-form";
@@ -12,30 +13,39 @@ const headerLink = "font-bold underline decoration-signal decoration-2 underline
 const features = [
   {
     title: "Publish and schedule",
-    body: "Send a post to Facebook Pages, Instagram, Threads, LinkedIn, Bluesky and X from one place, now or at a time you pick.",
+    body: "Write once and send it to every account in a set, now or at a time you pick.",
+  },
+  {
+    title: "A caption for each platform",
+    body: "Give X a short line, LinkedIn a longer one and a PDF, and the rest your images, in one post.",
   },
   {
     title: "Take posts down everywhere",
-    body: "Remove a published post from every platform it went out on.",
+    body: "Pull a published post back from every platform it went out on, in one step.",
   },
   {
     title: "Sets and lists",
-    body: "Group accounts into sets, and posts into ordered lists.",
+    body: "Group accounts into sets, like one per language or brand, and posts into ordered lists.",
+  },
+  {
+    title: "Teams",
+    body: "Invite people as admins or members. Passkeys, passwords and email links for sign-in.",
   },
   {
     title: "Built for AI agents",
-    body: "A REST API and an MCP server let your AI agents post for you.",
+    body: "A REST API and an MCP server let your agents post for you, limited to the sets you choose.",
   },
 ];
+
+const compose = `git clone https://github.com/socialreins/web
+cd web && cp .env.example .env
+docker compose up -d`;
 
 export default function Home() {
   return (
     <div className="mx-auto max-w-6xl px-5 sm:px-8">
       <header className="flex items-center justify-between py-6">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 font-display text-xl font-extrabold tracking-tight"
-        >
+        <Link href="/" className="flex items-center gap-2.5 font-display text-xl font-extrabold tracking-tight">
           <LogoMark className="size-9" />
           SocialReins
         </Link>
@@ -46,39 +56,50 @@ export default function Home() {
       </header>
 
       <main>
-        <section
-          id="waitlist"
-          className="grid items-center gap-10 pt-6 pb-16 md:grid-cols-[1.05fr_1fr] md:pt-14 md:pb-24"
-        >
+        <section id="waitlist" className="grid items-center gap-12 pt-8 pb-14 md:grid-cols-[1.05fr_1fr] md:pt-16 md:pb-20">
           <div className="grid gap-6">
+            <p className="flex flex-wrap gap-2 text-sm font-bold">
+              <span className="rounded-full bg-ink px-3 py-1 text-paper">Open source</span>
+              <span className="rounded-full border-2 border-ink px-3 py-0.5">Self-hostable</span>
+            </p>
             <h1 className="font-display text-[clamp(2.6rem,7vw,4.9rem)] leading-[0.95] font-extrabold tracking-[-0.03em]">
               Every social account, one set of reins.
             </h1>
             <p className="max-w-[34rem] text-lg text-ink-soft">
-              SocialReins is an open-source social media manager. Publish and
-              schedule to six platforms from one place, and pull a post back
-              from all of them when you need to.
+              SocialReins publishes and schedules your posts to eight platforms from one place, and pulls a post
+              back from all of them when you need to. Run it on your own server, or join the waitlist for the hosted
+              version.
             </p>
             <WaitlistForm />
           </div>
           <Reins />
         </section>
 
-        <section
-          aria-labelledby="features-title"
-          className="border-t-[3px] border-ink py-14 md:py-20"
-        >
-          <h2
-            id="features-title"
-            className="font-display text-3xl font-extrabold tracking-tight md:text-4xl"
-          >
+        <section aria-labelledby="platforms-title" className="border-y-2 border-ink/10 py-8">
+          <h2 id="platforms-title" className="text-sm font-bold tracking-wide text-ink-soft uppercase">
+            Posts to
+          </h2>
+          <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:flex-wrap sm:justify-between">
+            {platforms.map((p) => (
+              <li key={p.id} className="flex items-center gap-2.5 font-display font-bold">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-ink/10 bg-paper" style={{ color: p.color }}>
+                  <PlatformIcon platform={p} className="size-5" />
+                </span>
+                {p.name}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section aria-labelledby="features-title" className="py-14 md:py-20">
+          <h2 id="features-title" className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
             What it does
           </h2>
-          <dl className="mt-8 grid gap-x-12 gap-y-8 md:grid-cols-2">
+          <dl className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((f) => (
-              <div key={f.title} className="border-l-4 border-signal-deep pl-5">
+              <div key={f.title} className="rounded-3xl border border-ink/10 bg-paper p-6">
                 <dt className="font-display text-xl font-bold">{f.title}</dt>
-                <dd className="mt-1 max-w-[30rem] text-ink-soft">{f.body}</dd>
+                <dd className="mt-2 text-ink-soft">{f.body}</dd>
               </div>
             ))}
           </dl>
@@ -86,33 +107,40 @@ export default function Home() {
 
         <section
           aria-labelledby="oss-title"
-          className="-mx-5 bg-ink px-5 py-14 text-paper sm:-mx-8 sm:px-8 md:rounded-[2.5rem] md:px-14 md:py-16"
+          className="-mx-5 grid gap-10 bg-ink px-5 py-14 text-paper sm:-mx-8 sm:px-8 md:grid-cols-2 md:items-center md:rounded-[2.5rem] md:px-14 md:py-16"
         >
-          <h2
-            id="oss-title"
-            className="font-display text-3xl font-extrabold tracking-tight md:text-4xl"
-          >
-            Run it yourself, or let us run it
-          </h2>
-          <p className="mt-4 max-w-[38rem] text-lg text-canvas">
-            SocialReins is open source, and you will be able to self-host it
-            from GitHub, starting at socialreins/web. If you would rather not
-            run servers, join the waitlist for the hosted version, a paid
-            subscription coming later.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <GitHubRepos
-              label="Follow on GitHub"
-              align="left"
-              summaryClassName="rounded-full bg-signal px-6 py-3 font-bold text-ink hover:bg-paper"
-            />
-            <a
-              href="#waitlist"
-              className="rounded-full border-2 border-paper px-6 py-3 font-bold hover:bg-paper hover:text-ink"
-            >
-              Join the waitlist
-            </a>
+          <div>
+            <h2 id="oss-title" className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+              Run it yourself, or let us run it
+            </h2>
+            <p className="mt-4 max-w-[34rem] text-lg text-canvas">
+              SocialReins is open source. Three commands start it on your own server with Postgres, and every
+              platform is optional. If you would rather not run servers, join the waitlist for the hosted version, a
+              paid subscription coming later.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <GitHubRepos
+                label="Follow on GitHub"
+                align="left"
+                summaryClassName="rounded-full bg-signal px-6 py-3 font-bold text-ink hover:bg-paper"
+              />
+              <a href="#waitlist" className="rounded-full border-2 border-paper px-6 py-3 font-bold hover:bg-paper hover:text-ink">
+                Join the waitlist
+              </a>
+            </div>
           </div>
+          <figure className="min-w-0">
+            <pre className="overflow-x-auto rounded-2xl bg-paper/10 p-5 font-mono text-sm leading-relaxed">
+              <code>{compose}</code>
+            </pre>
+            <figcaption className="mt-3 text-sm text-canvas/80">
+              Full steps in the{" "}
+              <a href={`${repo}#self-host`} className="font-bold underline decoration-signal decoration-2 underline-offset-4">
+                README
+              </a>
+              .
+            </figcaption>
+          </figure>
         </section>
       </main>
 
@@ -121,10 +149,7 @@ export default function Home() {
           <LogoMark className="size-6" />
           Built by Bytech
         </span>
-        <a
-          href={repo}
-          className="font-bold underline decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep"
-        >
+        <a href={repo} className={headerLink}>
           SocialReins on GitHub
         </a>
       </footer>
