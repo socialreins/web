@@ -3,8 +3,8 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { addPasskey, getMe, type AddResult, type MeResult, type Passkey } from "@/lib/auth";
+import { useRouter, useSearchParams } from "next/navigation";
+import { addPasskey, getMe, safeNext, type AddResult, type MeResult, type Passkey } from "@/lib/auth";
 import { linkButton, signInLink } from "@/components/team-ui";
 
 const noSubscribe = () => () => {};
@@ -23,6 +23,8 @@ const failures: Partial<Record<Exclude<AddResult, Passkey>, ReactNode>> = {
 // Shown once after sign-up. brain sends a brand-new user here; anyone else just passes through.
 export function Welcome() {
   const router = useRouter();
+  // Where to go next, e.g. back to an invitation; only a path on this site, else /app.
+  const next = safeNext(useSearchParams().get("next"));
   const [me, setMe] = useState<MeResult | null>(null);
   const [state, setState] = useState<"idle" | "adding" | Exclude<AddResult, Passkey>>("idle");
   // null until hydrated, so the server render never decides for a browser it can't see.
@@ -37,8 +39,8 @@ export function Welcome() {
 
   // Without WebAuthn there is nothing to offer here.
   useEffect(() => {
-    if (webauthn === false) router.replace("/app");
-  }, [webauthn, router]);
+    if (webauthn === false) router.replace(next);
+  }, [webauthn, router, next]);
 
   if (me === null || me === "signed_out" || !webauthn) return <p className="text-ink-soft">Checking your sign-in...</p>;
   if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
@@ -46,7 +48,7 @@ export function Welcome() {
   async function onAdd() {
     flushSync(() => setState("adding"));
     const r = await addPasskey("");
-    if (typeof r === "object") return router.push("/app");
+    if (typeof r === "object") return router.push(next);
     setState(r);
   }
 
@@ -71,7 +73,7 @@ export function Welcome() {
           </button>
         </div>
       </div>
-      <Link href="/app" className={`justify-self-start ${linkButton}`}>
+      <Link href={next} className={`justify-self-start ${linkButton}`}>
         Skip for now
       </Link>
     </div>

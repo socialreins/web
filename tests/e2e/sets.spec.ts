@@ -146,7 +146,7 @@ test("delete asks first, asks to sign in again when needed, then moves the set t
   await yes.click();
   const reauth = page.getByRole("alert").filter({ hasText: "needs a fresh sign-in" });
   await expect(reauth).toBeVisible();
-  await expect(reauth.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login");
+  await expect(reauth.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login?next=%2Fapp%2Fsets");
   await expect(yes).toBeFocused();
   await yes.press("Enter");
   await expect(page.getByText("Deleted Clients. You can restore it for 30 days.")).toBeFocused();

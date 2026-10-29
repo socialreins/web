@@ -205,10 +205,31 @@ export async function api<T = "ok">(path: string, method = "GET", body?: unknown
 }
 
 // Sign-in methods this brain offers besides email links and passkeys; self-hosters may skip Google.
-export async function getProviders(): Promise<{ google: boolean }> {
-  const r = await api<{ google?: unknown }>("/auth/providers");
-  return { google: typeof r === "object" && r.google === true };
+// A network failure is retried once after `retryMs`; any answer from brain, even an error, is final.
+export async function getProviders(retryMs = 2000): Promise<{ google: boolean }> {
+  let res = await request("/auth/providers");
+  if (typeof res === "string") {
+    await new Promise((done) => setTimeout(done, retryMs));
+    res = await request("/auth/providers");
+  }
+  if (typeof res === "string" || !res.ok) return { google: false };
+  const body = await res.json().catch(() => null);
+  return { google: body?.google === true };
+}
+
+// A path on this site to return to after sign-in, else /app. Mirrors brain's oauth::safe_next, and
+// also refuses "//" anywhere, so "/a//evil.com" can't turn into another host.
+export function safeNext(raw: string | null | undefined): string {
+  const ok =
+    !!raw &&
+    raw.startsWith("/") &&
+    !raw.includes("//") &&
+    !raw.includes("\\") &&
+    raw.length <= 512 &&
+    !/[\s\p{Cc}]/u.test(raw);
+  return ok ? raw : "/app";
 }
 
 // A full-page navigation, not a fetch: brain sends the browser to Google and back to `next`.
-export const googleStartUrl = (next = "/app") => `${apiUrl}/auth/google/start?next=${encodeURIComponent(next)}`;
+export const googleStartUrl = (next?: string | null) =>
+  `${apiUrl}/auth/google/start?next=${encodeURIComponent(safeNext(next))}`;

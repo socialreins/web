@@ -3,13 +3,20 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { Failure, Role } from "@/lib/auth";
 
-export const signInLink = (text: string) => (
-  <Link href="/login" className="underline decoration-2 underline-offset-4">
-    {text}
-  </Link>
-);
+// Back to this page after signing in (with Google or a passkey; an emailed link always lands on /app).
+function SignInAgain({ text }: { text: string }) {
+  const path = usePathname();
+  return (
+    <Link href={`/login?next=${encodeURIComponent(path)}`} className="underline decoration-2 underline-offset-4">
+      {text}
+    </Link>
+  );
+}
+
+export const signInLink = (text: string) => <SignInAgain text={text} />;
 
 const messages: Partial<Record<Failure, ReactNode>> = {
   forbidden: "Your role in this team can't do that.",

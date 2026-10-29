@@ -112,3 +112,21 @@ test("login has no password field and links the terms and privacy policy", async
   await expect(page.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
   await expect(page.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
 });
+
+test("login passes a safe next path to Google and drops an unsafe one", async ({ page }) => {
+  await page.route("**/auth/providers", (route) => route.fulfill({ json: { google: true } }));
+  await page.goto("/login?next=%2Finvitations%2Fabc");
+  await expect(page.getByRole("link", { name: "Continue with Google" })).toHaveAttribute("href", /\/auth\/google\/start\?next=%2Finvitations%2Fabc$/);
+  for (const bad of ["%2F%2Fevil.com", "https%3A%2F%2Fevil.com", "%2F%5Cevil.com"]) {
+    await page.goto(`/login?next=${bad}`);
+    await expect(page.getByRole("link", { name: "Continue with Google" })).toHaveAttribute("href", /\/auth\/google\/start\?next=%2Fapp$/);
+  }
+});
+
+test("Continue with Google appears after one retry when the first providers call fails", async ({ page }) => {
+  let calls = 0;
+  await page.route("**/auth/providers", (route) => (++calls === 1 ? route.abort("failed") : route.fulfill({ json: { google: true } })));
+  await page.goto("/login");
+  await expect(page.getByRole("link", { name: "Continue with Google" })).toBeVisible({ timeout: 6000 });
+  expect(calls).toBe(2);
+});

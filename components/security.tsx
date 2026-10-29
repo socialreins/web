@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   addPasskey,
@@ -13,12 +12,9 @@ import {
   type MeResult,
   type Passkey,
 } from "@/lib/auth";
+import { signInLink } from "@/components/team-ui";
 
-const signIn = (text: string) => (
-  <Link href="/login" className="underline decoration-2 underline-offset-4">
-    {text}
-  </Link>
-);
+const signIn = signInLink;
 
 type Problem = Failure | "cancelled" | "unsupported";
 

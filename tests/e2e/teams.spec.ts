@@ -183,7 +183,7 @@ test("an owner deletes the team after typing its name, signing in again when nee
   await del.click();
   const reauth = page.getByRole("alert").filter({ hasText: "needs a fresh sign-in" });
   await expect(reauth).toBeVisible();
-  await expect(reauth.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login");
+  await expect(reauth.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login?next=%2Fapp%2Fteam");
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await del.click();
   await expect(page.getByRole("alert").filter({ hasText: "your only team" })).toBeVisible();
@@ -242,4 +242,30 @@ test("invitation explains a wrong account, an expired link and a used one", asyn
   await page.goto("/invitations/tok");
   await page.getByRole("button", { name: "Join Acme" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "expired, was already used" })).toBeVisible();
+});
+
+test("role change, removal and an admin invite ask to sign in again when brain needs it", async ({ page }) => {
+  await signedIn(page, "owner");
+  await page.route("**/v1/team/members/u-max", (route) => route.fulfill({ status: 403, json: { error: "reauth_required" } }));
+  await page.route("**/v1/team/invitations", (route) =>
+    route.request().method() === "POST" ? route.fulfill({ status: 403, json: { error: "reauth_required" } }) : route.fallback(),
+  );
+  await page.goto("/app/team");
+  const again = (region: string) =>
+    page.getByRole("region", { name: region }).getByRole("alert").filter({ hasText: "needs a fresh sign-in" });
+
+  await page.getByLabel("Role for Max").selectOption("admin");
+  await page.getByRole("button", { name: "Change Max's role" }).click();
+  await expect(again("Members")).toBeVisible();
+  await expect(again("Members").getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", "/login?next=%2Fapp%2Fteam");
+
+  await page.getByRole("button", { name: "Remove Max" }).click();
+  await page.getByRole("button", { name: "Yes, remove" }).click();
+  await expect(again("Members")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove Max" })).toBeVisible();
+
+  await page.getByLabel("Email").fill("boss@example.com");
+  await page.getByLabel("Role", { exact: true }).last().selectOption("admin");
+  await page.getByRole("button", { name: "Send invitation" }).click();
+  await expect(again("Invitations")).toBeVisible();
 });

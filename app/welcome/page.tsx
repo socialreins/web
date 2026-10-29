@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { LogoMark } from "@/components/logo";
 import { Welcome } from "@/components/welcome";
 
@@ -12,7 +13,10 @@ export default function WelcomePage() {
         <LogoMark className="size-9" />
         SocialReins
       </Link>
-      <Welcome />
+      {/* ?next= is only known in the browser. */}
+      <Suspense fallback={<p className="text-ink-soft">Checking your sign-in...</p>}>
+        <Welcome />
+      </Suspense>
     </main>
   );
 }

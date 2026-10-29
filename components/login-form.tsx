@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getProviders, googleStartUrl, requestLink, signInWithPasskey, type Failure, type LinkResult } from "@/lib/auth";
+import { getProviders, googleStartUrl, requestLink, safeNext, signInWithPasskey, type Failure, type LinkResult } from "@/lib/auth";
 
 const failures: Record<Exclude<LinkResult, "sent">, string> = {
   invalid: "That email address doesn't look right. Check it and try again.",
@@ -48,10 +48,12 @@ function GoogleMark() {
 
 // Reads ?error= on the client; the page shows <LoginForm linkError={null} /> as its server-rendered fallback.
 export function LoginFormWithError() {
-  return <LoginForm linkError={useSearchParams().get("error")} />;
+  const params = useSearchParams();
+  return <LoginForm linkError={params.get("error")} next={params.get("next")} />;
 }
 
-export function LoginForm({ linkError }: { linkError: string | null }) {
+// `next`: where to go after Google or passkey sign-in, if it is a path on this site.
+export function LoginForm({ linkError, next = null }: { linkError: string | null; next?: string | null }) {
   const router = useRouter();
   const [google, setGoogle] = useState(false);
   const [passkey, setPasskey] = useState<"idle" | "pending" | Failure | "cancelled">("idle");
@@ -90,7 +92,7 @@ export function LoginForm({ linkError }: { linkError: string | null }) {
       setStatus("idle");
     });
     const r = await signInWithPasskey();
-    if (r === "ok") return router.push("/app");
+    if (r === "ok") return router.push(safeNext(next));
     setPasskey(r);
   }
 
@@ -130,7 +132,7 @@ export function LoginForm({ linkError }: { linkError: string | null }) {
       {google && (
         <>
           <a
-            href={googleStartUrl()}
+            href={googleStartUrl(next)}
             className="flex h-11 w-full items-center justify-center gap-2.5 rounded-full border border-[#747775] bg-white px-3 text-[0.95rem] font-medium text-[#1f1f1f] [font-family:Roboto,Arial,sans-serif] hover:bg-[#f8f9fa]"
           >
             <GoogleMark />

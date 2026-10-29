@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getProviders, googleStartUrl, signInWithPasskey } from "@/lib/auth";
+import { getProviders, googleStartUrl, safeNext, signInWithPasskey } from "@/lib/auth";
 import { apiUrl } from "@/lib/waitlist";
 
 const reply = (status: number, error?: string) =>
@@ -17,24 +17,66 @@ describe("getProviders", () => {
     expect(call(fetch, 0)[1]).toMatchObject({ credentials: "include" });
   });
 
-  it("treats anything but google: true as no Google", async () => {
+  it("treats anything but google: true as no Google, without retrying an answer", async () => {
     for (const fetch of [
       vi.fn(async () => Response.json({ google: false })),
       vi.fn(async () => Response.json({ google: "yes" })),
       vi.fn(async () => Response.json({})),
       reply(500),
-      vi.fn().mockRejectedValue(new TypeError("offline")),
     ]) {
       vi.stubGlobal("fetch", fetch);
-      expect(await getProviders()).toEqual({ google: false });
+      expect(await getProviders(0)).toEqual({ google: false });
+      expect(fetch).toHaveBeenCalledTimes(1);
     }
   });
+
+  it("retries a network failure once", async () => {
+    let fetch = vi.fn().mockRejectedValueOnce(new TypeError("offline")).mockResolvedValueOnce(Response.json({ google: true }));
+    vi.stubGlobal("fetch", fetch);
+    expect(await getProviders(0)).toEqual({ google: true });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    fetch = vi.fn().mockRejectedValue(new TypeError("offline"));
+    vi.stubGlobal("fetch", fetch);
+    expect(await getProviders(0)).toEqual({ google: false });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits 2 seconds before the retry by default", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockRejectedValueOnce(new TypeError("offline")).mockResolvedValueOnce(Response.json({ google: true }));
+    vi.stubGlobal("fetch", fetch);
+    const pending = getProviders();
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await pending).toEqual({ google: true });
+    vi.useRealTimers();
+  });
+
 });
 
-describe("googleStartUrl", () => {
-  it("points the browser at brain with an encoded next path", () => {
+describe("googleStartUrl and safeNext", () => {
+  it("points the browser at brain with an encoded, safe next path", () => {
     expect(googleStartUrl()).toBe(`${apiUrl}/auth/google/start?next=%2Fapp`);
-    expect(googleStartUrl("/invitations/a b")).toBe(`${apiUrl}/auth/google/start?next=%2Finvitations%2Fa%20b`);
+    expect(googleStartUrl("/invitations/abc?x=1")).toBe(`${apiUrl}/auth/google/start?next=%2Finvitations%2Fabc%3Fx%3D1`);
+    expect(googleStartUrl("https://evil.com")).toBe(`${apiUrl}/auth/google/start?next=%2Fapp`);
+  });
+
+  it.each([
+    ["/invitations/abc", "/invitations/abc"],
+    ["/app/team", "/app/team"],
+    [null, "/app"],
+    ["", "/app"],
+    ["app", "/app"],
+    ["//evil.com", "/app"],
+    ["/a//evil.com", "/app"],
+    ["/\\evil.com", "/app"],
+    ["https://evil.com", "/app"],
+    ["/a b", "/app"],
+    ["/a\nb", "/app"],
+    ["/" + "a".repeat(600), "/app"],
+  ])("safeNext(%j) is %j", (raw, want) => {
+    expect(safeNext(raw)).toBe(want);
   });
 });
 
