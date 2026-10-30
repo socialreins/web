@@ -66,17 +66,18 @@ export function listItems(inboxId: string, state: ItemState, cursor?: string | n
 }
 export type Page = { items: Item[]; next: string | null };
 
-// A fresh first page over the loaded pages: new items on top, changed ones updated, and items
-// gone from the fresh page's time span dropped. A full fresh page with nothing in common means
-// more arrived than one page holds, so it replaces the list.
+// The newest page, fetched again, over the loaded pages. A complete fresh page, or one sharing
+// nothing with the list, replaces it. Otherwise items newer than the list go on top, known ones
+// update, and known ones gone from the fresh page's span drop. Unknown older items are left
+// for Load more, so the order and its cursor stay right.
 export function mergeFresh(loaded: Page, fresh: ItemPage): Page {
   const known = new Set(loaded.items.map((i) => i.id));
+  if (!fresh.next_cursor || !fresh.items.some((i) => known.has(i.id))) return { items: fresh.items, next: fresh.next_cursor };
   const byId = new Map(fresh.items.map((i) => [i.id, i]));
-  if (fresh.next_cursor && !fresh.items.some((i) => known.has(i.id))) return { items: fresh.items, next: fresh.next_cursor };
-  const oldest = fresh.items.at(-1);
-  const inSpan = (i: Item) => !fresh.next_cursor || (oldest !== undefined && i.received_at >= oldest.received_at);
-  const kept = loaded.items.flatMap((i) => (byId.has(i.id) ? [byId.get(i.id)!] : inSpan(i) ? [] : [i]));
-  return { items: [...fresh.items.filter((i) => !known.has(i.id)), ...kept], next: loaded.items.length ? loaded.next : fresh.next_cursor };
+  const newest = loaded.items[0]!.received_at;
+  const oldest = fresh.items.at(-1)!.received_at;
+  const kept = loaded.items.flatMap((i) => (byId.has(i.id) ? [byId.get(i.id)!] : i.received_at >= oldest ? [] : [i]));
+  return { items: [...fresh.items.filter((i) => !known.has(i.id) && i.received_at > newest), ...kept], next: loaded.next };
 }
 
 export const getItem = (id: string) => api<Item>(`/v1/inbox-items/${enc(id)}`);

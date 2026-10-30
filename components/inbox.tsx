@@ -178,7 +178,9 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
     const r = await listItems(currentId, state, page.next, kindQ);
     if (isFailure(r)) return setMore(r);
     setMore(null);
-    setPage((p) => (p && !isFailure(p) ? { items: [...p.items, ...r.items], next: r.next_cursor } : p));
+    // A refresh that replaced the list meanwhile has its own cursor; this page no longer follows it.
+    const cursor = page.next;
+    setPage((p) => (p && !isFailure(p) && p.next === cursor ? { items: [...p.items, ...r.items], next: r.next_cursor } : p));
   }
 
   // A changed item: the detail shows it, the list keeps it only while it fits the tab.

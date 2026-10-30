@@ -58,6 +58,13 @@ describe("mergeFresh", () => {
     expect(got.items.map((i) => i.id)).toEqual(["a"]);
   });
 
+  it("leaves an older unknown item for Load more after one was marked done", () => {
+    // c and b loaded, b marked done elsewhere, so the fresh page reaches down to the older a.
+    const loaded = page([["c", "2026-01-03"], ["b", "2026-01-02"]], "b");
+    const got = mergeFresh(loaded, { items: [item("c", "2026-01-03"), item("a", "2026-01-01")], next_cursor: "a" });
+    expect(got).toEqual({ items: [item("c", "2026-01-03")], next: "b" });
+  });
+
   it("replaces the list when a full fresh page shares nothing with it", () => {
     const got = mergeFresh(page([["a", "2026-01-01"]]), { items: [item("z", "2026-01-09")], next_cursor: "z" });
     expect(got).toEqual({ items: [item("z", "2026-01-09")], next: "z" });
