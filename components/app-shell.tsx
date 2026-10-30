@@ -22,6 +22,8 @@ export function useSession() {
 
 const nav: { href: string; label: string; icon: IconName }[] = [
   { href: "/app/posts", label: "Posts", icon: "posts" },
+  { href: "/app/inbox", label: "Inbox", icon: "inbox" },
+  { href: "/app/automations", label: "Automations", icon: "automations" },
   { href: "/app/connections", label: "Accounts", icon: "accounts" },
   { href: "/app/sets", label: "Sets", icon: "sets" },
   { href: "/app/team", label: "Team", icon: "team" },

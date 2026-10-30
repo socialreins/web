@@ -144,6 +144,15 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
                       </p>
                     </div>
                   </div>
+                  {c.provider === "bluesky" && c.dm_access === false && (
+                    <p className="rounded-xl bg-canvas p-3 text-sm">
+                      <strong>DMs off.</strong>{" "}
+                      <span className="text-ink-soft">
+                        Comments and mentions still reach the inbox, but DMs can&apos;t be read or sent. Make a new app password with
+                        &quot;Allow access to your direct messages&quot; ticked, then connect @{c.handle ?? name} again with it below.
+                      </span>
+                    </p>
+                  )}
                   {Array.isArray(sets) && (
                     <ul aria-label={`Sets for ${name}`} className="flex flex-wrap gap-1.5">
                       {setNames(c.set_ids, sets).map((n) => (
@@ -415,7 +424,8 @@ function AddAccount({ connected, onConnected }: { connected: Connection[]; onCon
                 >
                   open App passwords
                 </a>
-                ).
+                ). Tick &quot;Allow access to your direct messages&quot; so the inbox can read and send DMs; reconnecting an account
+                with a new app password keeps its posts and sets.
               </p>
               <button type="submit" className="btn btn-primary justify-self-start" disabled={busy !== null}>
                 {busy ? "Connecting..." : "Connect Bluesky"}
