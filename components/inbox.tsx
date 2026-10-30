@@ -12,6 +12,7 @@ import {
   listInboxes,
   listItems,
   maxFor,
+  mergeFresh,
   relativeTime,
   replyToItem,
   setItemState,
@@ -20,6 +21,7 @@ import {
   type Item,
   type ItemState,
   type Kind,
+  type Page,
   type SendError,
 } from "@/lib/inbox";
 import { graphemes } from "@/lib/posts";
@@ -31,7 +33,8 @@ import { InboxEditor, inboxMessages } from "@/components/inbox-editor";
 import { isFailure, problemText, Status, useAction } from "@/components/team-ui";
 import { Icon } from "@/components/ui";
 
-type Page = { items: Item[]; next: string | null };
+// New comments arrive on brain's per-minute tick; the open list checks twice a minute.
+const REFRESH_MS = 30_000;
 
 const replyMessages: Partial<Record<Failure, ReactNode>> = {
   reply_in_progress: "Another reply to this is going out right now. Wait a moment, then reload.",
@@ -116,7 +119,8 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
     return s.size ? `${base}?${s}` : base;
   };
 
-  const key = `${currentId}:${state}`;
+  const kindQ = kind === "all" ? null : kind;
+  const key = `${currentId}:${state}:${kind}`;
   const page = loaded?.key === key ? loaded.page : null;
   const setPage = (f: (p: Page | Failure | null) => Page | Failure | null) =>
     // A late answer for another inbox or tab leaves the newer page alone.
@@ -131,14 +135,33 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
   useEffect(() => {
     if (!currentId) return;
     let live = true;
-    const k = `${currentId}:${state}`;
-    listItems(currentId, state).then(
-      (r) => live && setLoaded({ key: k, page: isFailure(r) ? r : { items: r.items, next: r.next_cursor } }),
+    listItems(currentId, state, null, kindQ).then(
+      (r) => live && setLoaded({ key, page: isFailure(r) ? r : { items: r.items, next: r.next_cursor } }),
     );
     return () => {
       live = false;
     };
-  }, [currentId, state, reloads]);
+  }, [currentId, state, kindQ, key, reloads]);
+
+  // While the tab shows, fold the newest page into the list; a failed check waits for the next.
+  useEffect(() => {
+    if (!currentId) return;
+    let live = true;
+    const check = async () => {
+      if (document.visibilityState !== "visible") return;
+      const r = await listItems(currentId, state, null, kindQ);
+      if (!live || isFailure(r)) return;
+      setLoaded((l) => (l?.key === key && !isFailure(l.page) ? { key, page: mergeFresh(l.page, r) } : l));
+    };
+    const timer = setInterval(check, REFRESH_MS);
+    const onVisible = () => document.visibilityState === "visible" && check();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [currentId, state, kindQ, key]);
 
   useEffect(() => {
     if (!itemId) return;
@@ -152,7 +175,7 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
   async function loadMore() {
     if (!currentId || isFailure(page) || !page?.next) return;
     setMore("loading");
-    const r = await listItems(currentId, state, page.next);
+    const r = await listItems(currentId, state, page.next, kindQ);
     if (isFailure(r)) return setMore(r);
     setMore(null);
     setPage((p) => (p && !isFailure(p) ? { items: [...p.items, ...r.items], next: r.next_cursor } : p));
@@ -166,7 +189,6 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
     );
   }
 
-  // The kind chips filter loaded pages, so more pages may still hold that kind.
   const loadMoreButton = page && !isFailure(page) && page.next && (
     <>
       <button type="button" className="btn btn-secondary btn-sm mt-3" disabled={more === "loading"} onClick={loadMore}>
@@ -179,7 +201,7 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
       )}
     </>
   );
-  const items = page && !isFailure(page) ? page.items.filter((i) => kind === "all" || i.kind === kind) : [];
+  const items = page && !isFailure(page) ? page.items : [];
   const noAccounts = Array.isArray(accounts) && accounts.length === 0;
   const accountList = Array.isArray(accounts) ? accounts : [];
   // On small screens one pane shows at a time: inboxes, then items, then the item.
@@ -302,7 +324,7 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
           <p className="card p-5 text-ink-soft">
             {state === "done"
               ? "Nothing marked done yet."
-              : page.items.length
+              : kind !== "all"
                 ? "No items of this kind here."
                 : "Nothing here yet. New comments, mentions and DMs show up here within a minute."}
           </p>

@@ -14,7 +14,7 @@ export function Account() {
   const [signingOut, setSigningOut] = useState(false);
 
   return (
-    <div className="grid gap-2 border-t border-ink/10 px-2 pt-4">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-2 border-t border-ink/10 px-2 pt-4">
       <div className="flex items-center gap-3">
         <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-ink/10 font-bold">
           {(user.name || user.email).charAt(0).toUpperCase()}

@@ -58,11 +58,27 @@ export const updateInbox = (id: string, name: string, filters: Filters) =>
   api<Inbox>(`/v1/inboxes/${enc(id)}`, "PUT", { name, filters });
 export const deleteInbox = (id: string) => api(`/v1/inboxes/${enc(id)}`, "DELETE");
 
-export function listItems(inboxId: string, state: ItemState, cursor?: string | null) {
+export function listItems(inboxId: string, state: ItemState, cursor?: string | null, kind?: Kind | null) {
   const q = new URLSearchParams({ state });
+  if (kind) q.set("kind", kind);
   if (cursor) q.set("cursor", cursor);
   return api<ItemPage>(`/v1/inboxes/${enc(inboxId)}/items?${q}`);
 }
+export type Page = { items: Item[]; next: string | null };
+
+// A fresh first page over the loaded pages: new items on top, changed ones updated, and items
+// gone from the fresh page's time span dropped. A full fresh page with nothing in common means
+// more arrived than one page holds, so it replaces the list.
+export function mergeFresh(loaded: Page, fresh: ItemPage): Page {
+  const known = new Set(loaded.items.map((i) => i.id));
+  const byId = new Map(fresh.items.map((i) => [i.id, i]));
+  if (fresh.next_cursor && !fresh.items.some((i) => known.has(i.id))) return { items: fresh.items, next: fresh.next_cursor };
+  const oldest = fresh.items.at(-1);
+  const inSpan = (i: Item) => !fresh.next_cursor || (oldest !== undefined && i.received_at >= oldest.received_at);
+  const kept = loaded.items.flatMap((i) => (byId.has(i.id) ? [byId.get(i.id)!] : inSpan(i) ? [] : [i]));
+  return { items: [...fresh.items.filter((i) => !known.has(i.id)), ...kept], next: loaded.items.length ? loaded.next : fresh.next_cursor };
+}
+
 export const getItem = (id: string) => api<Item>(`/v1/inbox-items/${enc(id)}`);
 export const setItemState = (id: string, state: ItemState) => api<Item>(`/v1/inbox-items/${enc(id)}`, "PATCH", { state });
 

@@ -66,6 +66,22 @@ test("app shows the team switcher, switches and creates a team", async ({ page }
   await expect(team).toContainText("GammaOwner");
 });
 
+test("long team names and emails stay inside the sidebar", async ({ page }) => {
+  const long = "Bytech Social Media Marketing Agency International";
+  await page.route("**/auth/me", (route) =>
+    route.fulfill({ json: me("owner", { email: "someone.with.a.really.long.address@example-company.com", current_team: { id: "t1", name: long, role: "owner" } }) }),
+  );
+  await page.route("**/v1/teams", (route) =>
+    route.fulfill({ json: [{ id: "t1", name: long, role: "owner" }, { id: "t2", name: `${long} Second Office`, role: "member" }] }),
+  );
+  await page.goto("/app");
+  const team = page.getByRole("region", { name: "Team" });
+  await expect(team).toContainText(long);
+  await expect(page.getByLabel("Switch to another team")).toBeVisible();
+  const [card, aside] = await Promise.all([team.boundingBox(), page.locator("aside").boundingBox()]);
+  expect(card!.x + card!.width).toBeLessThanOrEqual(aside!.x + aside!.width);
+});
+
 test("app explains when sign-in can't be checked", async ({ page }) => {
   await page.route("**/auth/me", (route) => route.fulfill({ status: 500 }));
   await page.goto("/app");

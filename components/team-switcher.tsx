@@ -54,13 +54,15 @@ export function TeamSwitcher() {
   }
 
   return (
-    <section aria-label="Team" className="card grid gap-3 p-3 text-sm">
+    <section aria-label="Team" className="card grid grid-cols-[minmax(0,1fr)] gap-3 p-3 text-sm">
       <div className="flex items-center gap-3">
         <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-lg bg-signal font-display font-extrabold text-paper">
           {current.name.charAt(0).toUpperCase()}
         </span>
         <p className="min-w-0 leading-snug">
-          <strong className="block truncate text-base">{current.name}</strong>
+          <strong className="block truncate text-base" title={current.name}>
+            {current.name}
+          </strong>
           <span className="text-ink-soft">{roleName[current.role]}</span>
         </p>
       </div>
@@ -75,7 +77,7 @@ export function TeamSwitcher() {
             Switch to another team
           </label>
           <div className="flex gap-2">
-            <select id="switch-team" value={picked} onChange={(e) => setTarget(e.target.value)} className="field min-w-0 py-1.5 text-sm">
+            <select id="switch-team" value={picked} onChange={(e) => setTarget(e.target.value)} className="field min-w-0 flex-1 py-1.5 text-sm">
               {others.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}

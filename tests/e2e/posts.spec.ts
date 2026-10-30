@@ -108,6 +108,22 @@ test("calendar shows the month's posts, drafts below, with filter and month step
   await expect.poll(() => queries.some((q) => q.get("social_set_id") === "s1" && q.get("status") === "draft")).toBe(true);
 });
 
+test("on a phone the month is a list of days, not a wide grid", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-11-10T12:00:00+01:00"));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await brain(page);
+  await page.route(/\/v1\/posts(\?.*)?$/, (route) =>
+    route.fulfill({
+      json: new URL(route.request().url()).searchParams.get("status") === "draft" ? [] : [post("p-sched", { status: "scheduled", scheduled_at: "2026-11-12T09:30:00Z", body: "Launch day" })],
+    }),
+  );
+  await page.goto("/app/posts");
+  await expect(page.getByRole("table")).toBeHidden();
+  const days = page.getByRole("list", { name: "Posts in November 2026" });
+  await expect(days.getByRole("link", { name: /Launch day/ })).toHaveAttribute("href", "/app/posts/p-sched");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test("a team without Bluesky sees a note linking to connections", async ({ page }) => {
   await brain(page, { accounts: [] });
   await page.goto("/app/posts/new");

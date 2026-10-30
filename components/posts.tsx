@@ -70,6 +70,56 @@ export function BlueskyNote() {
   );
 }
 
+function PostChip({ post: p }: { post: Post }) {
+  const remote = p.targets.filter((t) => t.remote_url && t.status === "published");
+  return (
+    <li className="tone flex min-w-0 items-center rounded-md text-xs" data-status={p.status}>
+      <Link href={`/app/posts/${p.id}`} className="min-w-0 flex-1 truncate rounded-md px-1.5 py-1 hover:underline">
+        <strong>{time(postDay(p)!)}</strong> {snippet(p)}
+      </Link>
+      <span className="sr-only">{statusName[p.status]}</span>
+      {remote.map((t) => (
+        <a
+          key={t.id}
+          href={t.remote_url!}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View on Bluesky"
+          className="shrink-0 rounded-md p-1 hover:bg-ink/10"
+        >
+          <Icon name="external" className="size-3.5" />
+        </a>
+      ))}
+    </li>
+  );
+}
+
+// The month's days that have posts, in order, for screens too narrow for the grid.
+function MonthList({ posts, y, m, title }: { posts: Post[]; y: number; m: number; title: string }) {
+  const days = new Map<number, Post[]>();
+  for (const p of posts.filter(postDay).sort((a, b) => postDay(a)!.getTime() - postDay(b)!.getTime())) {
+    const d = postDay(p)!;
+    if (d.getFullYear() === y && d.getMonth() === m) days.set(d.getDate(), [...(days.get(d.getDate()) ?? []), p]);
+  }
+  if (days.size === 0) return <p className="card p-5 text-ink-soft">Nothing scheduled or published in {title}.</p>;
+  return (
+    <ol aria-label={`Posts in ${title}`} className="card divide-y divide-ink/10">
+      {[...days].map(([date, list]) => (
+        <li key={date} className="grid gap-2 p-3">
+          <p className="text-xs font-bold text-ink-soft">
+            {new Date(y, m, date).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+          </p>
+          <ul className="grid gap-1">
+            {list.map((p) => (
+              <PostChip key={p.id} post={p} />
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function Posts() {
   const now = new Date();
   const [month, setMonth] = useState({ y: now.getFullYear(), m: now.getMonth() });
@@ -144,7 +194,12 @@ export function Posts() {
             Posts couldn&apos;t be loaded. {problemText(posts, postMessages)}
           </p>
         ) : (
-          <div className="card overflow-x-auto">
+          <>
+            {/* Narrow screens get the month as a list of days; the grid needs about 46rem. */}
+            <div className="lg:hidden">
+              <MonthList posts={calendarPosts} y={month.y} m={month.m} title={title} />
+            </div>
+            <div className="card hidden overflow-x-auto lg:block">
             <table className="w-full min-w-[46rem] table-fixed border-collapse text-sm">
               <caption className="sr-only">Posts in {title}</caption>
               <thead>
@@ -181,29 +236,9 @@ export function Posts() {
                               </p>
                               {items.length > 0 && (
                                 <ul className="grid gap-1">
-                                  {items.map((p) => {
-                                    const remote = p.targets.filter((t) => t.remote_url && t.status === "published");
-                                    return (
-                                      <li key={p.id} className="tone flex min-w-0 items-center rounded-md text-xs" data-status={p.status}>
-                                        <Link href={`/app/posts/${p.id}`} className="min-w-0 flex-1 truncate rounded-md px-1.5 py-1 hover:underline">
-                                          <strong>{time(postDay(p)!)}</strong> {snippet(p)}
-                                        </Link>
-                                        <span className="sr-only">{statusName[p.status]}</span>
-                                        {remote.map((t) => (
-                                          <a
-                                            key={t.id}
-                                            href={t.remote_url!}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            aria-label="View on Bluesky"
-                                            className="shrink-0 rounded-md p-1 hover:bg-ink/10"
-                                          >
-                                            <Icon name="external" className="size-3.5" />
-                                          </a>
-                                        ))}
-                                      </li>
-                                    );
-                                  })}
+                                  {items.map((p) => (
+                                    <PostChip key={p.id} post={p} />
+                                  ))}
                                 </ul>
                               )}
                             </>
@@ -215,7 +250,8 @@ export function Posts() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
         <ul aria-label="Colors" className="flex flex-wrap gap-2">
           {legend.map((s) => (

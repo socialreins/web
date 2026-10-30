@@ -23,6 +23,8 @@ export type Automation = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // Only in the list.
+  runs?: { count: number; last_at: string | null };
 };
 export type AutomationInput = Pick<Automation, "name" | "trigger" | "conditions" | "actions" | "active" | "fallback_public_reply">;
 export type RunStatus = "running" | "sent" | "failed" | "skipped";

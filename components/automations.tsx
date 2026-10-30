@@ -82,30 +82,23 @@ function ActiveSwitch({ automation: a, canManage, onChange }: { automation: Auto
   );
 }
 
+function runsSummary(runs: Automation["runs"]) {
+  if (!runs?.count || !runs.last_at) return "No runs yet";
+  return `${runs.count} ${runs.count === 1 ? "run" : "runs"}, last ${when(runs.last_at)}`;
+}
+
 export function Automations() {
   const { user } = useSession();
   const canManage = manages(user.current_team.role);
   const [list, setList] = useState<Automation[] | Failure | null>(null);
-  const [runs, setRuns] = useState<Record<string, string>>({});
   const { accounts, sets } = useScopeData();
 
   useEffect(() => {
-    listAutomations().then((r) => {
-      setList(r);
-      // One page of runs each: 50 a page, so "50+" past that.
-      // shortcut: one request per automation (at most 50), upgrade to a count in the list response if teams hit rate limits.
-      if (Array.isArray(r))
-        for (const a of r)
-          listRuns(a.id).then((p) => {
-            if (isFailure(p)) return setRuns((m) => ({ ...m, [a.id]: "Runs couldn't be counted" }));
-            const n = p.runs.length;
-            const text = n === 0 ? "No runs yet" : `${n}${p.next_cursor ? "+" : ""} ${n === 1 ? "run" : "runs"}, last ${when(p.runs[0]!.created_at)}`;
-            setRuns((m) => ({ ...m, [a.id]: text }));
-          });
-    });
+    listAutomations().then(setList);
   }, []);
 
-  const replace = (a: Automation) => setList((l) => (Array.isArray(l) ? l.map((x) => (x.id === a.id ? a : x)) : l));
+  // Switching on or off answers without run counts, so the listed ones stay.
+  const replace = (a: Automation) => setList((l) => (Array.isArray(l) ? l.map((x) => (x.id === a.id ? { ...a, runs: x.runs } : x)) : l));
 
   return (
     <section aria-labelledby="automations-heading" className="grid gap-4">
@@ -151,7 +144,7 @@ export function Automations() {
                 <p className="text-sm text-ink-soft">
                   {scopeSummary(a.conditions, accounts, sets)}. {actionsSummary(a)}.
                 </p>
-                <p className="text-sm text-ink-soft">{runs[a.id] ?? "Counting runs..."}</p>
+                <p className="text-sm text-ink-soft">{runsSummary(a.runs)}</p>
               </div>
               <ActiveSwitch automation={a} canManage={canManage} onChange={replace} />
             </li>
