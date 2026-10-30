@@ -3,14 +3,16 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
-import { getMe, type Failure, type Team } from "@/lib/auth";
+import type { Failure, Team } from "@/lib/auth";
 import { createTeam, listTeams, switchTeam } from "@/lib/teams";
-import { isFailure, linkButton, problemText, roleName, Status, useAction } from "@/components/team-ui";
+import { useSession } from "@/components/app-shell";
+import { Icon } from "@/components/ui";
+import { isFailure, problemText, roleName, Status, useAction } from "@/components/team-ui";
 
-// The current team, a switch between the caller's teams, and "New team". Account handles signed out.
+// The current team, a switch between the caller's teams, and "New team", in the app's sidebar.
 export function TeamSwitcher() {
-  const [current, setCurrent] = useState<Team | null>(null);
-  const [meFailed, setMeFailed] = useState(false);
+  const { user, setTeam: setCurrent } = useSession();
+  const current = user.current_team;
   const [teams, setTeams] = useState<Team[] | Failure | null>(null);
   const [target, setTarget] = useState("");
   const [creating, setCreating] = useState(false);
@@ -20,20 +22,9 @@ export function TeamSwitcher() {
   const { busy, problem, done, run } = useAction();
 
   useEffect(() => {
-    getMe().then((r) => {
-      if (typeof r === "object") setCurrent(r.user.current_team);
-      else if (r === "error") setMeFailed(true);
-    });
     listTeams().then(setTeams);
   }, []);
 
-  if (meFailed)
-    return (
-      <p role="alert" className="waitlist-error">
-        Your team couldn&apos;t be loaded. Reload to try again.
-      </p>
-    );
-  if (!current) return null;
   const others = Array.isArray(teams) ? teams.filter((t) => t.id !== current.id) : [];
   const picked = target || others[0]?.id || "";
 
@@ -63,69 +54,76 @@ export function TeamSwitcher() {
   }
 
   return (
-    <section aria-labelledby="team-heading" className="grid gap-3">
-      <h2 id="team-heading" className="font-display text-2xl font-extrabold tracking-tight">
-        Team
-      </h2>
-      <p>
-        You are in <strong>{current.name}</strong> as {roleName[current.role].toLowerCase()}.{" "}
-        <Link href="/app/team" className={linkButton}>
-          Manage team
-        </Link>
-      </p>
+    <section aria-label="Team" className="card grid gap-3 p-3 text-sm">
+      <div className="flex items-center gap-3">
+        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-lg bg-signal font-display font-extrabold text-paper">
+          {current.name.charAt(0).toUpperCase()}
+        </span>
+        <p className="min-w-0 leading-snug">
+          <strong className="block truncate text-base">{current.name}</strong>
+          <span className="text-ink-soft">{roleName[current.role]}</span>
+        </p>
+      </div>
       {isFailure(teams) && (
         <p role="alert" className="waitlist-error">
           Your other teams couldn&apos;t be loaded. {problemText(teams)}
         </p>
       )}
       {others.length > 0 && (
-        <form onSubmit={onSwitch} className="waitlist">
-          <label htmlFor="switch-team">Switch to another team</label>
-          <div className="waitlist-row">
-            <select
-              id="switch-team"
-              value={picked}
-              onChange={(e) => setTarget(e.target.value)}
-              className="rounded-full border-2 border-ink bg-paper px-4 py-2"
-            >
+        <form onSubmit={onSwitch} className="grid gap-1">
+          <label htmlFor="switch-team" className="font-bold">
+            Switch to another team
+          </label>
+          <div className="flex gap-2">
+            <select id="switch-team" value={picked} onChange={(e) => setTarget(e.target.value)} className="field min-w-0 py-1.5 text-sm">
               {others.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>
               ))}
             </select>
-            <button type="submit" disabled={busy !== null}>
+            <button type="submit" className="btn btn-secondary btn-sm" disabled={busy !== null}>
               {busy === "switch" ? "Switching..." : "Switch"}
             </button>
           </div>
         </form>
       )}
-      {creating ? (
-        <form onSubmit={onCreate} className="waitlist">
-          <label htmlFor="new-team-name">New team name</label>
-          <div className="waitlist-row">
-            <input
-              ref={nameRef}
-              id="new-team-name"
-              required
-              maxLength={60}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              aria-invalid={problem === "invalid_name" || undefined}
-            />
-            <button type="submit" disabled={busy !== null}>
+      {creating && (
+        <form onSubmit={onCreate} className="grid gap-1">
+          <label htmlFor="new-team-name" className="font-bold">
+            New team name
+          </label>
+          <input
+            ref={nameRef}
+            id="new-team-name"
+            required
+            maxLength={60}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-invalid={problem === "invalid_name" || undefined}
+            className="field py-1.5 text-sm"
+          />
+          <div className="flex gap-2">
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy !== null}>
               {busy === "create" ? "Creating..." : "Create team"}
             </button>
+            <button type="button" className="btn btn-quiet btn-sm" onClick={() => openCreate(false)}>
+              Cancel
+            </button>
           </div>
-          <button type="button" className={`justify-self-start ${linkButton}`} onClick={() => openCreate(false)}>
-            Cancel
-          </button>
         </form>
-      ) : (
-        <button ref={newRef} type="button" className={`justify-self-start ${linkButton}`} onClick={() => openCreate(true)}>
-          New team
-        </button>
       )}
+      <div className="flex flex-wrap gap-1">
+        {!creating && (
+          <button ref={newRef} type="button" className="btn btn-quiet btn-sm" onClick={() => openCreate(true)}>
+            <Icon name="plus" className="size-4" />
+            New team
+          </button>
+        )}
+        <Link href="/app/team" className="btn btn-quiet btn-sm">
+          Manage team
+        </Link>
+      </div>
       <Status problem={problem} done={done} />
     </section>
   );

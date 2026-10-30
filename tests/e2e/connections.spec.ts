@@ -46,7 +46,7 @@ async function signedIn(page: Page, role: Role, accounts: unknown[] = [alice]) {
 test("app links to connected accounts", async ({ page }) => {
   await signedIn(page, "owner");
   await page.goto("/app");
-  await page.getByRole("link", { name: "Connected accounts" }).click();
+  await page.getByRole("link", { name: "Accounts", exact: true }).click();
   await expect(page).toHaveURL("/app/connections");
 });
 
@@ -61,11 +61,12 @@ test("lists accounts and the provider grid", async ({ page }) => {
   await page.goto("/app/connections");
   await expect(page.getByText("Alice", { exact: true })).toBeVisible();
   await expect(page.getByText(/Bluesky, @alice\.bsky\.social\. Connected .*\./)).toBeVisible();
-  const grid = page.getByRole("listitem").filter({ has: page.locator("span.text-sm") });
-  await expect(grid.filter({ hasText: "Bluesky" }).getByText("Available")).toBeVisible();
-  await expect(grid.filter({ hasText: "Facebook" }).getByText("Coming soon")).toBeVisible();
-  await expect(grid.filter({ hasText: "Instagram" }).getByText("Coming soon")).toBeVisible();
-  await expect(grid.filter({ hasText: "YouTube" }).getByText("Not set up on this server")).toBeVisible();
+  await expect(page.getByRole("form", { name: "Connect Bluesky" }).getByText("Available")).toBeVisible();
+  const group = (name: string) => page.getByRole("heading", { name, level: 3 }).locator("xpath=following-sibling::ul[1]");
+  await expect(group("Coming soon")).toContainText("Facebook");
+  await expect(group("Coming soon")).toContainText("Instagram");
+  await expect(group("Not set up on this server")).toContainText("YouTube");
+  await expect(group("Not set up on this server")).not.toContainText("Bluesky");
   const link = page.getByRole("link", { name: "open App passwords" });
   await expect(link).toHaveAttribute("href", "https://bsky.app/settings/app-passwords");
   await expect(link).toHaveAttribute("rel", "noopener noreferrer");

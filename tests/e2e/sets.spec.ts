@@ -200,7 +200,7 @@ test("a member sees sets read-only", async ({ page }) => {
   await expect(page.getByLabel("New set name")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^(Rename|Delete|Restore)/ })).toHaveCount(0);
   await page.goto("/app/connections");
-  await expect(page.getByText(/Sets: Default, Clients\./)).toBeVisible();
+  await expect(page.getByRole("list", { name: "Sets for Alice" }).getByRole("listitem")).toHaveText(["Default", "Clients"]);
   await expect(page.getByRole("button", { name: /Edit sets/ })).toHaveCount(0);
 });
 
@@ -218,8 +218,8 @@ test("connections edits an account's sets with Default locked", async ({ page })
     return route.fulfill({ json: { ...state.accounts[1], set_ids: ["d", "s1"] } });
   });
   await page.goto("/app/connections");
-  await expect(page.getByText(/Sets: Default, Clients\./)).toBeVisible();
-  await expect(page.getByText(/Sets: Default\.$/)).toBeVisible();
+  await expect(page.getByRole("list", { name: "Sets for Alice" }).getByRole("listitem")).toHaveText(["Default", "Clients"]);
+  await expect(page.getByRole("list", { name: "Sets for Bob" }).getByRole("listitem")).toHaveText(["Default"]);
   await page.getByRole("button", { name: "Edit sets for Bob" }).click();
   const group = page.getByRole("group", { name: "Sets for Bob" });
   await expect(group.getByRole("checkbox", { name: /Default/ })).toBeChecked();
@@ -231,6 +231,6 @@ test("connections edits an account's sets with Default locked", async ({ page })
   await expect.poll(() => setLoads).toBe(2);
   await page.getByRole("button", { name: "Save sets" }).click();
   await expect(page.getByText("Sets saved for Bob.")).toBeFocused();
-  await expect(page.getByText(/Sets: Default, Clients\./)).toHaveCount(2);
+  await expect(page.getByRole("list", { name: "Sets for Bob" }).getByRole("listitem")).toHaveText(["Default", "Clients"]);
   expect(bodies).toEqual([{ set_ids: ["d", "s1"] }, { set_ids: ["d", "s1"] }]);
 });

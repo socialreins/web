@@ -2,12 +2,13 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { getMe, type Failure, type MeResult } from "@/lib/auth";
+import type { Failure } from "@/lib/auth";
 import { listConnections } from "@/lib/connections";
 import { listPosts, monthRange, monthWeeks, postDay, sameDay, type Post, type PostStatus } from "@/lib/posts";
 import { listSets, type SocialSet } from "@/lib/sets";
-import { isFailure, linkButton, problemText } from "@/components/team-ui";
+import { PlatformIcon, platforms } from "@/components/platform-icons";
+import { isFailure, problemText } from "@/components/team-ui";
+import { Icon } from "@/components/ui";
 
 export const postMessages: Partial<Record<Failure, ReactNode>> = {
   too_long: "Bluesky posts can be at most 300 characters (and 3000 bytes).",
@@ -33,9 +34,18 @@ export const statusName: Record<PostStatus, string> = {
   deleted: "Taken down",
 };
 
-const heading = "font-display text-2xl font-extrabold tracking-tight";
 const time = (d: Date) => d.toLocaleTimeString(undefined, { timeStyle: "short" });
-export const snippet = (p: Post) => (p.body.trim() ? p.body.trim().slice(0, 60) + (p.body.trim().length > 60 ? "..." : "") : "(images only)");
+const snippet = (p: Post) => (p.body.trim() ? p.body.trim().slice(0, 60) + (p.body.trim().length > 60 ? "..." : "") : "(images only)");
+const bluesky = platforms.find((p) => p.id === "bluesky")!;
+const legend: PostStatus[] = ["scheduled", "queued", "published", "failed", "deleted"];
+
+export function StatusBadge({ status }: { status: PostStatus }) {
+  return (
+    <span className="badge tone" data-status={status}>
+      {statusName[status]}
+    </span>
+  );
+}
 
 // Shown when the team has no Bluesky account, since posts go to every Bluesky account of their set.
 export function BlueskyNote() {
@@ -45,42 +55,22 @@ export function BlueskyNote() {
   }, []);
   if (!missing) return null;
   return (
-    <p className="waitlist-done">
-      No Bluesky account is connected to this team yet, so posts have nowhere to go.{" "}
-      <Link href="/app/connections" className={linkButton}>
-        Connect one
+    <div className="card flex flex-wrap items-center gap-4 border-signal/40 p-5">
+      <span className="grid size-11 place-items-center rounded-xl bg-[#e7f1ff]" style={{ color: bluesky.color }}>
+        <PlatformIcon platform={bluesky} className="size-6" />
+      </span>
+      <p className="min-w-0 flex-1 basis-60">
+        <strong className="block">Connect an account first</strong>
+        <span className="text-ink-soft">No Bluesky account is connected to this team yet, so posts have nowhere to go.</span>
+      </p>
+      <Link href="/app/connections" className="btn btn-primary">
+        Connect an account
       </Link>
-    </p>
+    </div>
   );
 }
 
-export function RemoteLinks({ post }: { post: Post }) {
-  const links = post.targets.filter((t) => t.remote_url && t.status === "published");
-  return links.map((t) => (
-    <a key={t.id} href={t.remote_url!} target="_blank" rel="noopener noreferrer" className={`text-sm ${linkButton}`}>
-      View on Bluesky
-    </a>
-  ));
-}
-
-// The session cookie is on the API host, invisible to Next server code, so the check runs here.
 export function Posts() {
-  const router = useRouter();
-  const [me, setMe] = useState<MeResult | null>(null);
-
-  useEffect(() => {
-    getMe().then((r) => {
-      if (r === "signed_out") router.replace("/login");
-      else setMe(r);
-    });
-  }, [router]);
-
-  if (me === null || me === "signed_out") return <p className="text-ink-soft">Checking your sign-in...</p>;
-  if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
-  return <PostsPage />;
-}
-
-function PostsPage() {
   const now = new Date();
   const [month, setMonth] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [setId, setSetId] = useState("");
@@ -116,57 +106,51 @@ function PostsPage() {
   const setName = (id: string) => (Array.isArray(sets) ? sets.find((s) => s.id === id)?.name : undefined);
 
   return (
-    <>
+    <div className="grid gap-10">
       <BlueskyNote />
-      <div className="flex flex-wrap items-end gap-4">
-        <Link
-          href="/app/posts/new"
-          className="rounded-full border-2 border-ink bg-ink px-5 py-2 font-bold text-paper hover:border-signal-deep hover:bg-signal-deep"
-        >
-          New post
-        </Link>
-        {Array.isArray(sets) && (
-          <label className="grid gap-1 font-bold">
-            Set
-            <select value={setId} onChange={(e) => setSetId(e.target.value)} className="rounded-full border-2 border-ink bg-paper px-4 py-2 font-normal">
-              <option value="">All sets</option>
-              {sets.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-      <section aria-labelledby="month-heading" className="grid gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="month-heading" className={heading} aria-live="polite">
-            {title}
-          </h2>
-          <div className="flex gap-4">
-            <button type="button" className={linkButton} onClick={() => step(-1)}>
-              Previous month
+      <section aria-labelledby="month-heading" className="grid gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button type="button" className="icon-btn" aria-label="Previous month" onClick={() => step(-1)}>
+              <Icon name="left" />
             </button>
-            <button type="button" className={linkButton} onClick={() => step(1)}>
-              Next month
+            <button type="button" className="icon-btn" aria-label="Next month" onClick={() => step(1)}>
+              <Icon name="right" />
             </button>
+            <h2 id="month-heading" className="ml-2 font-display text-xl font-extrabold tracking-tight" aria-live="polite">
+              {title}
+            </h2>
           </div>
+          {Array.isArray(sets) && (
+            <label className="flex items-center gap-2 text-sm font-bold">
+              Set
+              <select value={setId} onChange={(e) => setSetId(e.target.value)} className="field w-auto py-1.5 font-normal">
+                <option value="">All sets</option>
+                {sets.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         {posts === null ? (
-          <p className="text-ink-soft">Loading posts...</p>
+          <div className="h-96 rounded-2xl bg-ink/5 motion-safe:animate-pulse" role="status">
+            <span className="sr-only">Loading posts...</span>
+          </div>
         ) : isFailure(posts) ? (
           <p role="alert" className="waitlist-error">
             Posts couldn&apos;t be loaded. {problemText(posts, postMessages)}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[42rem] table-fixed border-collapse text-sm">
+          <div className="card overflow-x-auto">
+            <table className="w-full min-w-[46rem] table-fixed border-collapse text-sm">
               <caption className="sr-only">Posts in {title}</caption>
               <thead>
                 <tr>
                   {weekdays.map((w) => (
-                    <th key={w} scope="col" className="p-1 text-left text-ink-soft">
+                    <th key={w} scope="col" className="border-b border-ink/10 px-2 py-2 text-left text-xs font-bold text-ink-soft">
                       {w}
                     </th>
                   ))}
@@ -177,22 +161,49 @@ function PostsPage() {
                   <tr key={i}>
                     {week.map((day, j) => {
                       const items = day ? calendarPosts.filter((p) => sameDay(postDay(p) ?? new Date(0), day)) : [];
+                      const today = day && sameDay(day, now);
                       return (
-                        <td key={j} className="h-24 border border-ink/10 bg-paper p-1 align-top">
+                        <td
+                          key={j}
+                          aria-current={today ? "date" : undefined}
+                          className={`h-28 border-ink/10 p-1.5 align-top [&:not(:last-child)]:border-r ${i > 0 ? "border-t" : ""} ${
+                            day ? (today ? "bg-signal/5" : "") : "bg-canvas"
+                          }`}
+                        >
                           {day && (
                             <>
-                              <p className="font-bold">{day.getDate()}</p>
+                              <p
+                                className={`mb-1 grid size-6 place-items-center rounded-full text-xs font-bold ${
+                                  today ? "bg-signal text-paper" : "text-ink-soft"
+                                }`}
+                              >
+                                {day.getDate()}
+                              </p>
                               {items.length > 0 && (
                                 <ul className="grid gap-1">
-                                  {items.map((p) => (
-                                    <li key={p.id} className="grid">
-                                      <Link href={`/app/posts/${p.id}`} className="truncate underline decoration-signal underline-offset-2 hover:text-signal-deep">
-                                        {time(postDay(p)!)} {snippet(p)}
-                                      </Link>
-                                      <span className="text-ink-soft">{statusName[p.status]}</span>
-                                      <RemoteLinks post={p} />
-                                    </li>
-                                  ))}
+                                  {items.map((p) => {
+                                    const remote = p.targets.filter((t) => t.remote_url && t.status === "published");
+                                    return (
+                                      <li key={p.id} className="tone flex min-w-0 items-center rounded-md text-xs" data-status={p.status}>
+                                        <Link href={`/app/posts/${p.id}`} className="min-w-0 flex-1 truncate rounded-md px-1.5 py-1 hover:underline">
+                                          <strong>{time(postDay(p)!)}</strong> {snippet(p)}
+                                        </Link>
+                                        <span className="sr-only">{statusName[p.status]}</span>
+                                        {remote.map((t) => (
+                                          <a
+                                            key={t.id}
+                                            href={t.remote_url!}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            aria-label="View on Bluesky"
+                                            className="shrink-0 rounded-md p-1 hover:bg-ink/10"
+                                          >
+                                            <Icon name="external" className="size-3.5" />
+                                          </a>
+                                        ))}
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               )}
                             </>
@@ -206,9 +217,16 @@ function PostsPage() {
             </table>
           </div>
         )}
+        <ul aria-label="Colors" className="flex flex-wrap gap-2">
+          {legend.map((s) => (
+            <li key={s}>
+              <StatusBadge status={s} />
+            </li>
+          ))}
+        </ul>
       </section>
-      <section aria-labelledby="drafts-heading" className="grid gap-3">
-        <h2 id="drafts-heading" className={heading}>
+      <section aria-labelledby="drafts-heading" className="grid gap-4">
+        <h2 id="drafts-heading" className="font-display text-xl font-extrabold tracking-tight">
           Drafts
         </h2>
         {drafts === null ? (
@@ -218,12 +236,12 @@ function PostsPage() {
             Drafts couldn&apos;t be loaded. {problemText(drafts, postMessages)}
           </p>
         ) : drafts.length === 0 ? (
-          <p>No drafts.</p>
+          <p className="text-ink-soft">No drafts. Posts you save without scheduling show up here.</p>
         ) : (
-          <ul className="grid gap-2">
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {drafts.map((p) => (
-              <li key={p.id} className="grid gap-1 border-l-4 border-ink bg-paper px-4 py-3">
-                <Link href={`/app/posts/${p.id}`} className={`justify-self-start ${linkButton}`}>
+              <li key={p.id} className="tone relative grid content-start gap-2 rounded-2xl bg-paper p-4 hover:bg-ink/[0.02]" data-status="draft">
+                <Link href={`/app/posts/${p.id}`} className="font-bold text-ink after:absolute after:inset-0 after:rounded-2xl">
                   {snippet(p)}
                 </Link>
                 <p className="text-sm text-ink-soft">
@@ -235,6 +253,6 @@ function PostsPage() {
           </ul>
         )}
       </section>
-    </>
+    </div>
   );
 }

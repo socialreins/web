@@ -55,3 +55,61 @@ body { margin: 0; font-family: var(--font-body); font-size: 1.0625rem; line-heig
 .waitlist-empty { margin: 0; }
 .legal h2 { font-family: var(--font-display, inherit); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; margin-top: 1rem; }
 .legal ul { list-style: disc; padding-left: 1.25rem; display: grid; gap: 0.35rem; }
+
+/* App primitives, shared by every page under /app. In a layer so utilities can adjust them. */
+@layer components {
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  font: inherit; font-weight: 700; font-size: 0.95rem; line-height: 1.25; white-space: nowrap;
+  padding: 0.55rem 1.1rem; border-radius: 999px; border: 1.5px solid transparent; cursor: pointer;
+  text-decoration: none; transition: background-color .15s, border-color .15s, color .15s;
+}
+.btn:disabled { opacity: 0.6; cursor: progress; }
+.btn-primary { background: var(--color-ink); color: var(--color-paper); border-color: var(--color-ink); }
+.btn-primary:hover:not(:disabled) { background: var(--color-signal-deep); border-color: var(--color-signal-deep); }
+.btn-secondary { background: var(--color-paper); color: var(--color-ink); border-color: color-mix(in srgb, var(--color-ink) 22%, transparent); }
+.btn-secondary:hover:not(:disabled) { border-color: var(--color-ink); }
+.btn-quiet { background: transparent; color: var(--color-ink-soft); padding-inline: 0.7rem; }
+.btn-quiet:hover:not(:disabled) { background: color-mix(in srgb, var(--color-ink) 6%, transparent); color: var(--color-ink); }
+.btn-danger { color: var(--color-signal-deep); }
+.btn-danger:hover:not(:disabled) { color: var(--color-signal-deep); background: #fdece6; }
+.btn-sm { font-size: 0.875rem; padding: 0.35rem 0.8rem; }
+.icon-btn {
+  display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--color-ink) 15%, transparent); background: var(--color-paper);
+  color: var(--color-ink); cursor: pointer;
+}
+.icon-btn:hover { border-color: var(--color-ink); }
+.field {
+  width: 100%; font: inherit; padding: 0.6rem 0.85rem; border-radius: 0.75rem;
+  background: var(--color-paper); color: var(--color-ink);
+  border: 1.5px solid color-mix(in srgb, var(--color-ink) 20%, transparent);
+}
+.field:hover { border-color: color-mix(in srgb, var(--color-ink) 40%, transparent); }
+.field:focus { border-color: var(--color-ink); }
+.field[aria-invalid] { border-color: var(--color-signal-deep); }
+.label { font-weight: 700; font-size: 0.95rem; }
+.hint { margin: 0; font-size: 0.875rem; color: var(--color-ink-soft); }
+.card { background: var(--color-paper); border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent); border-radius: 1rem; }
+
+/* Post status tones: badges, calendar chips and the legend share them. */
+.tone { background: color-mix(in srgb, var(--color-ink) 6%, transparent); color: var(--color-ink-soft); }
+.tone[data-status="scheduled"] { background: #ffeadf; color: #a32a06; }
+.tone[data-status="queued"] { background: #e3efff; color: #0a4fa8; }
+.tone[data-status="published"] { background: #e2f2e7; color: #17603a; }
+.tone[data-status="failed"] { background: #fde2e1; color: #a8160f; }
+.tone[data-status="deleted"] { text-decoration: line-through; }
+.tone[data-status="draft"] { background: transparent; outline: 1.5px dashed color-mix(in srgb, var(--color-ink) 30%, transparent); outline-offset: -1.5px; }
+.badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+}
+
+/* The older forms inside the app (team, sets, passkeys) pick up the same field and button look. */
+.app-main .waitlist { max-width: none; }
+.app-main .waitlist input, .app-main .waitlist select {
+  font-size: 1rem; padding: 0.6rem 0.85rem; border-radius: 0.75rem;
+  border: 1.5px solid color-mix(in srgb, var(--color-ink) 20%, transparent);
+}
+.app-main .waitlist input:focus, .app-main .waitlist select:focus { border-color: var(--color-ink); }
+.app-main .waitlist input[aria-invalid] { border-color: var(--color-signal-deep); }
+.app-main .waitlist button { font-size: 0.95rem; padding: 0.55rem 1.1rem; border-width: 1.5px; }
+.app-main .waitlist-done { border-radius: 0.75rem; border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent); border-left: 5px solid var(--color-signal); font-size: 0.975rem; }

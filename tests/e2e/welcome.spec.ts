@@ -39,7 +39,7 @@ test("welcome goes straight to the app without WebAuthn", async ({ page }) => {
   });
   await signedIn(page);
   await page.goto("/welcome");
-  await expect(page).toHaveURL("/app");
+  await expect(page).toHaveURL("/app/posts");
 });
 
 test("welcome adds a passkey with a virtual authenticator, then opens the app", async ({ page, context }) => {
@@ -59,7 +59,7 @@ test("welcome adds a passkey with a virtual authenticator, then opens the app", 
   await expect(page.getByRole("heading", { name: "Add a passkey to sign in faster" })).toBeVisible();
   await expect(page.getByText(/Face ID, Touch ID or your device PIN/)).toBeVisible();
   await page.getByRole("button", { name: "Add a passkey" }).click();
-  await expect(page).toHaveURL("/app");
+  await expect(page).toHaveURL("/app/posts");
   expect(finished).toBe(true);
 });
 
@@ -73,7 +73,7 @@ test("welcome explains a cancelled prompt and can be skipped", async ({ page }) 
   await page.getByRole("button", { name: "Add a passkey" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Adding the passkey was cancelled" })).toBeVisible();
   await page.getByRole("link", { name: "Skip for now" }).click();
-  await expect(page).toHaveURL("/app");
+  await expect(page).toHaveURL("/app/posts");
 });
 
 test("welcome goes to a safe next path after skipping, and ignores an unsafe one", async ({ page }) => {

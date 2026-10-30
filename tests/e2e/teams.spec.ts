@@ -50,25 +50,26 @@ test("app shows the team switcher, switches and creates a team", async ({ page }
     return route.fulfill({ json: { id: "t2", name: "Beta", role: "member" } });
   });
   await page.goto("/app");
-  await expect(page.getByText("You are in Acme as owner.")).toBeVisible();
+  const team = page.getByRole("region", { name: "Team" });
+  await expect(team).toContainText("AcmeOwner");
   await expect(page.getByRole("link", { name: "Manage team" })).toHaveAttribute("href", "/app/team");
   await page.getByRole("button", { name: "Switch", exact: true }).click();
   await expect(page.getByText("Switched to Beta.")).toBeFocused();
   expect(switched).toEqual({ team_id: "t2" });
-  await expect(page.getByText("You are in Beta as member.")).toBeVisible();
+  await expect(team).toContainText("BetaMember");
 
   await page.getByRole("button", { name: "New team" }).click();
   await expect(page.getByLabel("New team name")).toBeFocused();
   await page.getByLabel("New team name").fill("Gamma");
   await page.getByRole("button", { name: "Create team" }).click();
   await expect(page.getByText("Created Gamma. It is now your current team.")).toBeFocused();
-  await expect(page.getByText("You are in Gamma as owner.")).toBeVisible();
+  await expect(team).toContainText("GammaOwner");
 });
 
-test("app explains when the team can't be loaded", async ({ page }) => {
+test("app explains when sign-in can't be checked", async ({ page }) => {
   await page.route("**/auth/me", (route) => route.fulfill({ status: 500 }));
   await page.goto("/app");
-  await expect(page.getByRole("alert").filter({ hasText: "Your team couldn't be loaded." })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Sign-in couldn't be checked." })).toBeVisible();
 });
 
 test("team page sends a signed-out visitor to login", async ({ page }) => {
@@ -147,7 +148,7 @@ test("a member sees no management controls and can leave", async ({ page }) => {
   await expect(page.getByRole("combobox")).toHaveCount(0);
   await page.getByRole("button", { name: "Leave team" }).click();
   await page.getByRole("button", { name: "Yes, leave" }).click();
-  await expect(page).toHaveURL("/app");
+  await expect(page).toHaveURL("/app/posts");
   expect(left).toBe("DELETE /v1/team/members/u-me");
 });
 
@@ -188,7 +189,7 @@ test("an owner deletes the team after typing its name, signing in again when nee
   await del.click();
   await expect(page.getByRole("alert").filter({ hasText: "your only team" })).toBeVisible();
   await del.click();
-  await expect(page).toHaveURL("/app");
+  await expect(page).toHaveURL("/app/posts");
   expect(bodies).toEqual([{}, {}, {}]);
 });
 

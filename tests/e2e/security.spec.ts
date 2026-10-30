@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const user = { id: "1", email: "someone@example.com", name: "someone", username: null };
+const user = { id: "1", email: "someone@example.com", name: "someone", username: null, current_team: { id: "t1", name: "Acme", role: "owner" } };
 const key = { id: "k1", name: "Old phone", created_at: "2026-10-01T10:00:00Z", last_used_at: null };
 const signedIn = (page: Page, passkeys: unknown[] = []) =>
   Promise.all([
@@ -11,9 +11,10 @@ const signedIn = (page: Page, passkeys: unknown[] = []) =>
 test("app links to the security page", async ({ page }) => {
   await signedIn(page);
   await page.goto("/app");
-  await page.getByRole("link", { name: "Passkeys", exact: true }).click();
+  await page.getByRole("link", { name: "Security", exact: true }).click();
   await expect(page).toHaveURL("/app/security");
-  await expect(page.getByRole("heading", { name: "Passkeys", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Security", level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Security", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
 });
 
