@@ -54,7 +54,7 @@ const runs = [
 ];
 
 async function brain(page: Page, role: Role) {
-  const state = { list: [automation("a1", "Price to DM")], bodies: [] as unknown[] };
+  const state = { list: [automation("a1", "Price to DM", { runs: { count: 3, last_at: runs[0]!.created_at } })], bodies: [] as unknown[] };
   await page.route("**/auth/me", (route) => route.fulfill({ json: me(role) }));
   await page.route("**/v1/connections", (route) => route.fulfill({ json: [alice] }));
   await page.route(/\/v1\/social-sets$/, (route) => route.fulfill({ json: [{ id: "d", name: "Default", is_default: true, account_ids: ["c1"], account_count: 1, created_at: "", deleted_at: null }] }));
@@ -103,6 +103,7 @@ test("lists automations with summary, runs and a switch", async ({ page }) => {
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await expect(card).toContainText("3 runs, last");
   expect(state.list[0]!.active).toBe(false);
 });
 

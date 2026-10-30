@@ -85,8 +85,9 @@ async function brain(page: Page, role: Role, opts: { accounts?: unknown[]; items
     return route.fulfill({ json: inbox("i2", req.postDataJSON().name) });
   });
   await page.route(/\/v1\/inboxes\/[^/]+\/items/, (route) => {
-    const want = new URL(route.request().url()).searchParams.get("state");
-    return route.fulfill({ json: { items: state.items.filter((i) => i.state === want), next_cursor: null } });
+    const q = new URL(route.request().url()).searchParams;
+    const kind = q.get("kind");
+    return route.fulfill({ json: { items: state.items.filter((i) => i.state === q.get("state") && (!kind || i.kind === kind)), next_cursor: null } });
   });
   await page.route(/\/v1\/inbox-items\/[^/]+$/, (route) => {
     const id = route.request().url().split("/").pop()!;
@@ -244,18 +245,37 @@ test.describe("on a phone", () => {
   });
 });
 
-test("load more stays reachable under a kind filter", async ({ page }) => {
+test("a kind filter asks brain for that kind, and load more keeps it", async ({ page }) => {
   await brain(page, "owner", { items: [item("p1", "comment", "First page")] });
+  const asked: URLSearchParams[] = [];
   await page.route(/\/v1\/inboxes\/all\/items/, (route) => {
-    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    const q = new URL(route.request().url()).searchParams;
+    asked.push(q);
+    if (q.get("kind") !== "dm") return route.fulfill({ json: { items: [item("p1", "comment", "First page")], next_cursor: null } });
     return route.fulfill({
-      json: cursor ? { items: [item("p9", "dm", "Older DM", { received_at: ago(600) })], next_cursor: null } : { items: [item("p1", "comment", "First page")], next_cursor: "p1" },
+      json: q.get("cursor")
+        ? { items: [item("p9", "dm", "Older DM", { received_at: ago(600) })], next_cursor: null }
+        : { items: [item("p8", "dm", "Newer DM")], next_cursor: "p8" },
     });
   });
   await page.goto("/app/inbox");
   await page.getByRole("button", { name: "DMs" }).click();
-  await expect(page.getByText("No items of this kind here.")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Newer DM/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /First page/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Load more" }).click();
   await expect(page.getByRole("link", { name: /Older DM/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Load more" })).toHaveCount(0);
+  expect(asked.at(-1)?.get("kind")).toBe("dm");
+  expect(asked.at(-1)?.get("cursor")).toBe("p8");
+});
+
+test("the open list picks up new items without a reload", async ({ page }) => {
+  await page.clock.install();
+  const state = await brain(page, "owner", { items: [item("p1", "comment", "Older comment")] });
+  await page.goto("/app/inbox");
+  await expect(page.getByRole("link", { name: /Older comment/ })).toBeVisible();
+  state.items.unshift(item("p7", "comment", "Brand new comment"));
+  await page.clock.runFor(31_000);
+  const rows = page.getByRole("list", { name: "Items" }).getByRole("listitem");
+  await expect(rows.first()).toContainText("Brand new comment");
+  await expect(rows).toHaveCount(2);
 });

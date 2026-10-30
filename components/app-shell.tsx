@@ -119,7 +119,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <CurrentNavLinks />
                 </Suspense>
               </nav>
-              <div className="mt-auto grid gap-4">
+              {/* minmax(0,1fr): a long team name or email truncates instead of widening the sidebar. */}
+              <div className="mt-auto grid grid-cols-[minmax(0,1fr)] gap-4">
                 {session ? (
                   <>
                     <TeamSwitcher />

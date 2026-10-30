@@ -58,11 +58,28 @@ export const updateInbox = (id: string, name: string, filters: Filters) =>
   api<Inbox>(`/v1/inboxes/${enc(id)}`, "PUT", { name, filters });
 export const deleteInbox = (id: string) => api(`/v1/inboxes/${enc(id)}`, "DELETE");
 
-export function listItems(inboxId: string, state: ItemState, cursor?: string | null) {
+export function listItems(inboxId: string, state: ItemState, cursor?: string | null, kind?: Kind | null) {
   const q = new URLSearchParams({ state });
+  if (kind) q.set("kind", kind);
   if (cursor) q.set("cursor", cursor);
   return api<ItemPage>(`/v1/inboxes/${enc(inboxId)}/items?${q}`);
 }
+export type Page = { items: Item[]; next: string | null };
+
+// The newest page, fetched again, over the loaded pages. A complete fresh page, or one sharing
+// nothing with the list, replaces it. Otherwise items newer than the list go on top, known ones
+// update, and known ones gone from the fresh page's span drop. Unknown older items are left
+// for Load more, so the order and its cursor stay right.
+export function mergeFresh(loaded: Page, fresh: ItemPage): Page {
+  const known = new Set(loaded.items.map((i) => i.id));
+  if (!fresh.next_cursor || !fresh.items.some((i) => known.has(i.id))) return { items: fresh.items, next: fresh.next_cursor };
+  const byId = new Map(fresh.items.map((i) => [i.id, i]));
+  const newest = loaded.items[0]!.received_at;
+  const oldest = fresh.items.at(-1)!.received_at;
+  const kept = loaded.items.flatMap((i) => (byId.has(i.id) ? [byId.get(i.id)!] : i.received_at >= oldest ? [] : [i]));
+  return { items: [...fresh.items.filter((i) => !known.has(i.id) && i.received_at > newest), ...kept], next: loaded.next };
+}
+
 export const getItem = (id: string) => api<Item>(`/v1/inbox-items/${enc(id)}`);
 export const setItemState = (id: string, state: ItemState) => api<Item>(`/v1/inbox-items/${enc(id)}`, "PATCH", { state });
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { listItems, relativeTime, replyToItem, setItemState } from "@/lib/inbox";
+import { listItems, mergeFresh, relativeTime, replyToItem, setItemState, type Item } from "@/lib/inbox";
 import { apiUrl } from "@/lib/waitlist";
 
 const call = (fetch: ReturnType<typeof vi.fn>) => fetch.mock.calls[0] as unknown as [string, RequestInit];
@@ -38,4 +38,35 @@ it("says how long ago", () => {
   expect(relativeTime("2026-10-30T11:59:40Z", now)).toBe("now");
   expect(relativeTime("2026-10-30T11:55:00Z", now)).toBe("5 minutes ago");
   expect(relativeTime("2026-10-29T12:00:00Z", now)).toBe("yesterday");
+});
+
+describe("mergeFresh", () => {
+  const item = (id: string, at: string, text = id) => ({ id, received_at: at, text }) as unknown as Item;
+  const page = (ids: [string, string][], next: string | null = null) => ({ items: ids.map(([id, at]) => item(id, at)), next });
+
+  it("puts new items on top, updates known ones and keeps the next cursor", () => {
+    const loaded = page([["b", "2026-01-02"], ["a", "2026-01-01"]], "a");
+    const fresh = { items: [item("c", "2026-01-03"), item("b", "2026-01-02", "edited")], next_cursor: "b" };
+    const got = mergeFresh(loaded, fresh);
+    expect(got.items.map((i) => i.id)).toEqual(["c", "b", "a"]);
+    expect(got.items[1]!.text).toBe("edited");
+    expect(got.next).toBe("a");
+  });
+
+  it("drops items a complete fresh page no longer holds", () => {
+    const got = mergeFresh(page([["b", "2026-01-02"], ["a", "2026-01-01"]]), { items: [item("a", "2026-01-01")], next_cursor: null });
+    expect(got.items.map((i) => i.id)).toEqual(["a"]);
+  });
+
+  it("leaves an older unknown item for Load more after one was marked done", () => {
+    // c and b loaded, b marked done elsewhere, so the fresh page reaches down to the older a.
+    const loaded = page([["c", "2026-01-03"], ["b", "2026-01-02"]], "b");
+    const got = mergeFresh(loaded, { items: [item("c", "2026-01-03"), item("a", "2026-01-01")], next_cursor: "a" });
+    expect(got).toEqual({ items: [item("c", "2026-01-03")], next: "b" });
+  });
+
+  it("replaces the list when a full fresh page shares nothing with it", () => {
+    const got = mergeFresh(page([["a", "2026-01-01"]]), { items: [item("z", "2026-01-09")], next_cursor: "z" });
+    expect(got).toEqual({ items: [item("z", "2026-01-09")], next: "z" });
+  });
 });
