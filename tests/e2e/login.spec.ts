@@ -1,7 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
-const user = { id: "1", email: "someone@example.com", name: "someone", username: null };
+const user = { id: "1", email: "someone@example.com", name: "someone", username: null, current_team: { id: "t1", name: "Acme", role: "owner" } };
 
 test("passkey sign-in with a virtual authenticator goes to the app", async ({ page, context }) => {
   const cdp = await context.newCDPSession(page);
@@ -37,7 +37,7 @@ test("passkey sign-in with a virtual authenticator goes to the app", async ({ pa
   await page.route("**/auth/me", (route) => route.fulfill({ json: user }));
   await page.goto("/login");
   await page.getByRole("button", { name: "Sign in with a passkey" }).click();
-  await expect(page).toHaveURL("/app");
+  await expect(page).toHaveURL("/app/posts");
   expect(finish?.challenge_id).toBe("c1");
   expect(finish?.credential.rawId).toBe(Buffer.from("cred-1").toString("base64url"));
   expect(finish?.credential.response.userHandle).toBe(Buffer.from("user-1").toString("base64url"));

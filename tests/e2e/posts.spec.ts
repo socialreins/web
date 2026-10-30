@@ -113,7 +113,7 @@ test("a team without Bluesky sees a note linking to connections", async ({ page 
   await page.goto("/app/posts/new");
   const note = page.getByText("No Bluesky account is connected to this team yet");
   await expect(note).toBeVisible();
-  await expect(page.getByRole("link", { name: "Connect one" })).toHaveAttribute("href", "/app/connections");
+  await expect(page.getByRole("link", { name: "Connect an account" })).toHaveAttribute("href", "/app/connections");
 });
 
 test("compose checks length, images and schedule before asking brain", async ({ page }) => {
@@ -139,6 +139,8 @@ test("compose checks length, images and schedule before asking brain", async ({ 
   await expect(page.getByRole("alert").filter({ hasText: "Write something or add an image" })).toBeVisible();
 
   await body.fill("Hello");
+  await page.getByRole("button", { name: "Add image" }).click();
+  await expect(page.getByLabel("Image 1 link")).toBeFocused();
   await page.getByLabel("Image 1 link").fill("http://example.com/a.png");
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "must be https links" })).toBeVisible();
@@ -164,6 +166,7 @@ test("schedule sends the local time as UTC and moves to the post's address", asy
   await page.goto("/app/posts/new");
   await page.getByLabel("Set").selectOption("s1");
   await page.getByLabel("Post", { exact: true }).fill("Launch day");
+  await page.getByRole("button", { name: "Add image" }).click();
   await page.getByLabel("Image 1 link").fill("https://example.com/a.png");
   await page.getByLabel("Publish at").fill("2026-11-20T09:30");
   await expect(page.getByText("In your time zone, Europe/Berlin.", { exact: false })).toBeVisible();
@@ -199,8 +202,10 @@ test("publish now polls until the post is published", async ({ page }) => {
   await page.goto("/app/posts/new");
   await page.getByLabel("Post", { exact: true }).fill("Right now");
   await page.getByRole("button", { name: "Publish now" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Publishing. This page updates by itself." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Publishing. This page updates by itself." })).toBeFocused();
   await expect(page.getByRole("status").filter({ hasText: /^Published on / })).toBeVisible({ timeout: 10_000 });
+  // No "publishing" message is left behind once the post is out.
+  await expect(page.getByText(/Publishing|Sent to Bluesky/)).toHaveCount(0);
   await expect(page.getByRole("link", { name: "View on Bluesky" })).toHaveAttribute("href", "https://bsky.app/profile/alice.bsky.social/post/1");
   await expect(page.getByText("Alice: published")).toBeVisible();
   expect(polls).toBe(2);

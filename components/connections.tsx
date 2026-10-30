@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { getMe, type Failure, type MeResult } from "@/lib/auth";
+import type { Failure } from "@/lib/auth";
+import { useSession } from "@/components/app-shell";
 import {
   connectBluesky,
   disconnect,
@@ -18,9 +18,9 @@ import {
 import { listSets, setAccountSets, setNames, type SocialSet } from "@/lib/sets";
 import { manages } from "@/lib/teams";
 import { PlatformIcon, platforms } from "@/components/platform-icons";
-import { isFailure, linkButton, problemText, Status, useAction } from "@/components/team-ui";
+import { isFailure, problemText, Status, useAction } from "@/components/team-ui";
 
-const heading = "font-display text-2xl font-extrabold tracking-tight";
+const heading = "font-display text-xl font-extrabold tracking-tight";
 const date = (iso: string) => new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
 const platformOf = (id: string) => platforms.find((p) => p.id === id);
 
@@ -51,21 +51,9 @@ export function Avatar({ connection: c, size = "size-10" }: { connection: Connec
   );
 }
 
-// The session cookie is on the API host, invisible to Next server code, so the check runs here.
 export function Connections() {
-  const router = useRouter();
-  const [me, setMe] = useState<MeResult | null>(null);
-
-  useEffect(() => {
-    getMe().then((r) => {
-      if (r === "signed_out") router.replace("/login");
-      else setMe(r);
-    });
-  }, [router]);
-
-  if (me === null || me === "signed_out") return <p className="text-ink-soft">Checking your sign-in...</p>;
-  if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
-  return <ConnectionsPage canManage={manages(me.user.current_team.role)} team={me.user.current_team.name} />;
+  const { user } = useSession();
+  return <ConnectionsPage canManage={manages(user.current_team.role)} team={user.current_team.name} />;
 }
 
 function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string }) {
@@ -109,50 +97,62 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
 
   return (
     <>
-      <section aria-labelledby="accounts-heading" className="grid gap-3">
-        <h2 id="accounts-heading" ref={headingRef} tabIndex={-1} className={heading}>
-          Connected accounts
-        </h2>
-        <p className="text-ink-soft">
-          Accounts connected to {team}.{" "}
-          <Link href="/app/sets" className={linkButton}>
+      <section aria-labelledby="accounts-heading" className="grid gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="accounts-heading" ref={headingRef} tabIndex={-1} className={heading}>
+              Connected accounts
+            </h2>
+            <p className="text-ink-soft">Accounts connected to {team}.</p>
+          </div>
+          <Link href="/app/sets" className="btn btn-secondary btn-sm">
             Manage sets
           </Link>
-        </p>
+        </div>
         <Status problem={problem} done={done} overrides={connectMessages} />
         {list === null ? (
-          <p className="text-ink-soft">Loading accounts...</p>
+          <div role="status" className="h-28 rounded-2xl bg-ink/5 motion-safe:animate-pulse">
+            <span className="sr-only">Loading accounts...</span>
+          </div>
         ) : isFailure(list) ? (
           <p role="alert" className="waitlist-error">
             Accounts couldn&apos;t be loaded. {problemText(list)}
           </p>
         ) : list.length === 0 ? (
-          <p>No accounts connected yet.</p>
+          <p className="card p-5 text-ink-soft">No accounts connected yet. Connect one below to start posting.</p>
         ) : (
-          <ul className="grid gap-2">
+          <ul className="grid gap-3 sm:grid-cols-2">
             {list.map((c) => {
               const platform = platformOf(c.provider);
               const name = accountName(c);
               return (
-                <li key={c.id} className="grid gap-2 border-l-4 border-ink bg-paper px-4 py-3">
+                <li key={c.id} className="card grid content-start gap-3 p-4">
                   <div className="flex items-center gap-3">
-                    <Avatar connection={c} />
+                    <span className="relative shrink-0">
+                      <Avatar connection={c} size="size-12" />
+                      {platform && (
+                        <span className="absolute -right-1 -bottom-1 grid size-5 place-items-center rounded-full bg-paper ring-2 ring-paper" style={{ color: platform.color }}>
+                          <PlatformIcon platform={platform} className="size-3.5" />
+                        </span>
+                      )}
+                    </span>
                     <div className="min-w-0">
-                      <p className="flex items-center gap-2 font-bold">
-                        {platform && (
-                          <span style={{ color: platform.color }}>
-                            <PlatformIcon platform={platform} className="size-4" />
-                          </span>
-                        )}
-                        <span className="truncate">{name}</span>
-                      </p>
+                      <p className="truncate font-bold">{name}</p>
                       <p className="text-sm text-ink-soft">
                         {platform?.name ?? c.provider}
                         {c.handle && c.display_name ? `, @${c.handle}` : ""}. Connected {date(c.created_at)}.
-                        {Array.isArray(sets) && ` Sets: ${setNames(c.set_ids, sets).join(", ")}.`}
                       </p>
                     </div>
                   </div>
+                  {Array.isArray(sets) && (
+                    <ul aria-label={`Sets for ${name}`} className="flex flex-wrap gap-1.5">
+                      {setNames(c.set_ids, sets).map((n) => (
+                        <li key={n} className="badge tone">
+                          {n}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {canManage && Array.isArray(sets) && sets.length > 1 && (
                     <SetsEditor
                       connection={c}
@@ -163,21 +163,25 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
                   )}
                   {canManage &&
                     (confirming === c.id ? (
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                        <p id={`confirm-${c.id}`}>Disconnect {name}? SocialReins will forget its stored password.</p>
-                        <button
-                          ref={confirmRef}
-                          type="button"
-                          className={linkButton}
-                          aria-describedby={`confirm-${c.id}`}
-                          disabled={busy !== null}
-                          onClick={() => onDisconnect(c, name)}
-                        >
-                          {busy === "disconnect" ? "Disconnecting..." : "Yes, disconnect"}
-                        </button>
-                        <button type="button" className={linkButton} disabled={busy !== null} onClick={() => cancel(c.id)}>
-                          Cancel
-                        </button>
+                      <div className="grid gap-2 rounded-xl bg-canvas p-3">
+                        <p id={`confirm-${c.id}`} className="text-sm">
+                          Disconnect {name}? SocialReins will forget its stored password.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            ref={confirmRef}
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            aria-describedby={`confirm-${c.id}`}
+                            disabled={busy !== null}
+                            onClick={() => onDisconnect(c, name)}
+                          >
+                            {busy === "disconnect" ? "Disconnecting..." : "Yes, disconnect"}
+                          </button>
+                          <button type="button" className="btn btn-quiet btn-sm" disabled={busy !== null} onClick={() => cancel(c.id)}>
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <button
@@ -186,7 +190,7 @@ function ConnectionsPage({ canManage, team }: { canManage: boolean; team: string
                           else disconnectRefs.current.delete(c.id);
                         }}
                         type="button"
-                        className={`justify-self-start ${linkButton}`}
+                        className="btn btn-quiet btn-danger btn-sm justify-self-start"
                         disabled={busy !== null}
                         aria-label={`Disconnect ${name}`}
                         onClick={() => setConfirming(c.id)}
@@ -256,7 +260,7 @@ function SetsEditor({
   return (
     <div className="grid gap-2">
       {open ? (
-        <form onSubmit={onSave} className="grid gap-2">
+        <form onSubmit={onSave} className="grid gap-2 rounded-xl bg-canvas p-3">
           <fieldset className="grid gap-1">
             <legend className="font-bold">Sets for {name}</legend>
             {sets.map((s) => (
@@ -276,10 +280,10 @@ function SetsEditor({
             ))}
           </fieldset>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <button type="submit" className={linkButton} disabled={busy !== null}>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy !== null}>
               {busy ? "Saving..." : "Save sets"}
             </button>
-            <button type="button" className={linkButton} disabled={busy !== null} onClick={() => show(false)}>
+            <button type="button" className="btn btn-quiet btn-sm" disabled={busy !== null} onClick={() => show(false)}>
               Cancel
             </button>
           </div>
@@ -288,7 +292,7 @@ function SetsEditor({
         <button
           ref={toggleRef}
           type="button"
-          className={`justify-self-start ${linkButton}`}
+          className="btn btn-secondary btn-sm justify-self-start"
           aria-label={`Edit sets for ${name}`}
           onClick={() => show(true)}
         >
@@ -300,7 +304,7 @@ function SetsEditor({
   );
 }
 
-const stateText = { available: "Available", coming_soon: "Coming soon", not_configured: "Not set up on this server" };
+const stateText = { coming_soon: "Coming soon", not_configured: "Not set up on this server" };
 
 function AddAccount({ connected, onConnected }: { connected: Connection[]; onConnected: () => void }) {
   const [providers, setProviders] = useState<Provider[] | Failure | null>(null);
@@ -331,83 +335,114 @@ function AddAccount({ connected, onConnected }: { connected: Connection[]; onCon
     });
   }
 
-  const bluesky = Array.isArray(providers) && providerState("bluesky", providers) === "available";
+  const known = Array.isArray(providers) ? providers : [];
+  const bluesky = platforms.find((p) => p.id === "bluesky")!;
+  const blueskyReady = providerState("bluesky", known) === "available";
+  const groups = (["coming_soon", "not_configured"] as const).map((state) => ({
+    state,
+    list: platforms.filter((p) => providerState(p.id, known) === state && !(p.id === "bluesky" && blueskyReady)),
+  }));
   return (
-    <section aria-labelledby="add-heading" className="grid gap-3">
+    <section aria-labelledby="add-heading" className="grid gap-4">
       <h2 id="add-heading" className={heading}>
         Add an account
       </h2>
       {providers === null ? (
-        <p className="text-ink-soft">Loading platforms...</p>
+        <div role="status" className="h-40 rounded-2xl bg-ink/5 motion-safe:animate-pulse">
+          <span className="sr-only">Loading platforms...</span>
+        </div>
       ) : isFailure(providers) ? (
         <p role="alert" className="waitlist-error">
           Platforms couldn&apos;t be loaded. {problemText(providers)}
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {platforms.map((p) => {
-            const state = providerState(p.id, providers);
-            return (
-              <li key={p.id} className="grid gap-1 rounded-xl border border-ink/10 bg-paper p-3">
-                <span className="flex items-center gap-2 font-display font-bold">
-                  <span style={{ color: p.color }}>
-                    <PlatformIcon platform={p} className="size-5" />
-                  </span>
-                  {p.name}
+        <>
+          {blueskyReady && (
+            <form onSubmit={onConnect} className="card grid gap-4 p-5" aria-labelledby="bluesky-heading">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-[#e7f1ff]" style={{ color: bluesky.color }}>
+                  <PlatformIcon platform={bluesky} className="size-6" />
                 </span>
-                <span className={`text-sm ${state === "available" ? "font-bold" : "text-ink-soft"}`}>{stateText[state]}</span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {bluesky && (
-        <form onSubmit={onConnect} className="waitlist" aria-labelledby="bluesky-heading">
-          <h3 id="bluesky-heading" className="font-display text-xl font-extrabold tracking-tight">
-            Connect Bluesky
-          </h3>
-          <label htmlFor="bluesky-handle">Bluesky handle</label>
-          <input
-            id="bluesky-handle"
-            required
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="alice.bsky.social"
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            aria-invalid={problem === "invalid_handle" || undefined}
-          />
-          <label htmlFor="bluesky-app-password">App password</label>
-          <input
-            id="bluesky-app-password"
-            type="password"
-            required
-            autoComplete="off"
-            value={appPassword}
-            onChange={(e) => setAppPassword(e.target.value)}
-            aria-invalid={problem === "invalid_credentials" || undefined}
-            aria-describedby="bluesky-app-password-note"
-          />
-          <p id="bluesky-app-password-note" className="waitlist-note">
-            Use an app password, not your main password: make one in Bluesky under Settings, Privacy and security, App
-            passwords (
-            <a
-              href="https://bsky.app/settings/app-passwords"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline decoration-2 underline-offset-4"
-            >
-              open App passwords
-            </a>
-            ).
-          </p>
-          <div className="waitlist-row">
-            <button type="submit" disabled={busy !== null}>
-              {busy ? "Connecting..." : "Connect Bluesky"}
-            </button>
-          </div>
-          <Status problem={problem} done={done} overrides={connectMessages} />
-        </form>
+                <h3 id="bluesky-heading" className="font-display text-lg font-extrabold tracking-tight">
+                  Connect Bluesky
+                </h3>
+                <span className="badge tone ml-auto" data-status="published">
+                  Available
+                </span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid content-start gap-1.5">
+                  <label htmlFor="bluesky-handle" className="label">
+                    Bluesky handle
+                  </label>
+                  <input
+                    id="bluesky-handle"
+                    required
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="alice.bsky.social"
+                    className="field"
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value)}
+                    aria-invalid={problem === "invalid_handle" || undefined}
+                  />
+                </div>
+                <div className="grid content-start gap-1.5">
+                  <label htmlFor="bluesky-app-password" className="label">
+                    App password
+                  </label>
+                  <input
+                    id="bluesky-app-password"
+                    type="password"
+                    required
+                    autoComplete="off"
+                    className="field"
+                    value={appPassword}
+                    onChange={(e) => setAppPassword(e.target.value)}
+                    aria-invalid={problem === "invalid_credentials" || undefined}
+                    aria-describedby="bluesky-app-password-note"
+                  />
+                </div>
+              </div>
+              <p id="bluesky-app-password-note" className="hint">
+                Use an app password, not your main password: make one in Bluesky under Settings, Privacy and security, App
+                passwords (
+                <a
+                  href="https://bsky.app/settings/app-passwords"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline decoration-2 underline-offset-4"
+                >
+                  open App passwords
+                </a>
+                ).
+              </p>
+              <button type="submit" className="btn btn-primary justify-self-start" disabled={busy !== null}>
+                {busy ? "Connecting..." : "Connect Bluesky"}
+              </button>
+              <Status problem={problem} done={done} overrides={connectMessages} />
+            </form>
+          )}
+          {groups.map(
+            ({ state, list }) =>
+              list.length > 0 && (
+                <div key={state} className="grid gap-2">
+                  <h3 className="font-bold text-ink-soft">{stateText[state]}</h3>
+                  <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {list.map((p) => (
+                      <li key={p.id} className="flex items-center gap-2 rounded-xl border border-dashed border-ink/15 px-3 py-2.5 text-ink-soft">
+                        <PlatformIcon platform={p} className="size-5 opacity-60" />
+                        <span className="font-bold">{p.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ),
+          )}
+          {groups[1]!.list.length > 0 && (
+            <p className="hint">Platforms not set up need their app keys added to this server.</p>
+          )}
+        </>
       )}
     </section>
   );

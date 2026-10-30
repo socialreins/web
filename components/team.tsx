@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
-import { getMe, type Failure, type MeResult, type Role, type Team, type User } from "@/lib/auth";
+import type { Failure, Role, Team, User } from "@/lib/auth";
+import { useSession } from "@/components/app-shell";
 import {
   deleteTeam,
   grantable,
@@ -21,29 +22,17 @@ import {
 } from "@/lib/teams";
 import { isFailure, linkButton, problemText, roleName, Status, useAction } from "@/components/team-ui";
 
-const heading = "font-display text-2xl font-extrabold tracking-tight";
+const heading = "font-display text-xl font-extrabold tracking-tight";
 const select = "rounded-full border-2 border-ink bg-paper px-4 py-2";
 const date = (iso: string) => new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
 
-// The session cookie is on the API host, invisible to Next server code, so the check runs here.
 export function TeamSettings() {
-  const router = useRouter();
-  const [me, setMe] = useState<MeResult | null>(null);
-
-  useEffect(() => {
-    getMe().then((r) => {
-      if (r === "signed_out") router.replace("/login");
-      else setMe(r);
-    });
-  }, [router]);
-
-  if (me === null || me === "signed_out") return <p className="text-ink-soft">Checking your sign-in...</p>;
-  if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
-  return <TeamPage user={me.user} />;
+  return <TeamPage user={useSession().user} />;
 }
 
 function TeamPage({ user }: { user: User }) {
-  const [team, setTeam] = useState<Team>(user.current_team);
+  const { setTeam } = useSession();
+  const team = user.current_team;
   // brain drops the invitations a member sent once they are removed or can no longer invite.
   const [version, setVersion] = useState(0);
   const mine = team.role;
@@ -100,6 +89,7 @@ function Rename({ team, onRenamed }: { team: Team; onRenamed: (t: Team) => void 
 
 function Members({ me, mine, onChanged }: { me: User; mine: Role; onChanged: () => void }) {
   const router = useRouter();
+  const { refresh } = useSession();
   const [members, setMembers] = useState<Member[] | Failure | null>(null);
   const [roles, setRoles] = useState<Record<string, Role>>({});
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -128,8 +118,11 @@ function Members({ me, mine, onChanged }: { me: User; mine: Role; onChanged: () 
       onChanged();
       return `${m.name} was removed from the team.`;
     });
-    // Leaving changes the current team, so the app page shows the new one.
-    if (ok && leaving) return router.push("/app");
+    // Leaving changes the current team, so the shell loads the new one.
+    if (ok && leaving) {
+      await refresh();
+      return router.push("/app");
+    }
     flushSync(() => setConfirming(null));
     if (!ok) removeRefs.current.get(m.id)?.focus();
   }
@@ -330,12 +323,15 @@ function Invitations({ version }: { version: number }) {
 
 function DeleteTeam({ team }: { team: Team }) {
   const router = useRouter();
+  const { refresh } = useSession();
   const [typed, setTyped] = useState("");
   const { busy, problem, done, run } = useAction();
 
   async function onDelete(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (await run("delete", deleteTeam, () => undefined)) router.push("/app");
+    if (!(await run("delete", deleteTeam, () => undefined))) return;
+    await refresh();
+    router.push("/app");
   }
 
   return (

@@ -2,33 +2,21 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
-import { useRouter } from "next/navigation";
-import { getMe, type Failure, type MeResult } from "@/lib/auth";
+import type { Failure } from "@/lib/auth";
+import { useSession } from "@/components/app-shell";
 import { listConnections, type Connection } from "@/lib/connections";
 import { createSet, deleteSet, listSets, purgeDate, renameSet, restoreSet, type SocialSet } from "@/lib/sets";
 import { manages } from "@/lib/teams";
 import { accountName, Avatar } from "@/components/connections";
 import { isFailure, linkButton, problemText, Status, useAction } from "@/components/team-ui";
 
-const heading = "font-display text-2xl font-extrabold tracking-tight";
+const heading = "font-display text-xl font-extrabold tracking-tight";
 const date = (d: string | Date) => new Date(d).toLocaleDateString(undefined, { dateStyle: "medium" });
 const count = (n: number) => `${n} ${n === 1 ? "account" : "accounts"}`;
 
-// The session cookie is on the API host, invisible to Next server code, so the check runs here.
 export function Sets() {
-  const router = useRouter();
-  const [me, setMe] = useState<MeResult | null>(null);
-
-  useEffect(() => {
-    getMe().then((r) => {
-      if (r === "signed_out") router.replace("/login");
-      else setMe(r);
-    });
-  }, [router]);
-
-  if (me === null || me === "signed_out") return <p className="text-ink-soft">Checking your sign-in...</p>;
-  if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
-  return <SetsPage canManage={manages(me.user.current_team.role)} />;
+  const { user } = useSession();
+  return <SetsPage canManage={manages(user.current_team.role)} />;
 }
 
 function SetsPage({ canManage }: { canManage: boolean }) {

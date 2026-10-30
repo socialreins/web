@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const user = { id: "1", email: "someone@example.com", name: "someone", username: null };
+const user = { id: "1", email: "someone@example.com", name: "someone", username: null, current_team: { id: "t1", name: "Acme", role: "owner" } };
 
 test("login sends a link and shows the check-your-email state", async ({ page }) => {
   let body: unknown;

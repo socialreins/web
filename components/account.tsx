@@ -1,34 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getMe, signOut, type MeResult } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
+import { useSession } from "@/components/app-shell";
+import { Icon } from "@/components/ui";
 
-// The session cookie is on the API host, invisible to Next server code, so the check runs here.
+// Who is signed in, and Sign out, at the foot of the app's sidebar.
 export function Account() {
   const router = useRouter();
-  const [me, setMe] = useState<MeResult | null>(null);
+  const { user } = useSession();
   const [signOutFailed, setSignOutFailed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
-  useEffect(() => {
-    getMe().then((r) => {
-      if (r === "signed_out") router.replace("/login");
-      else setMe(r);
-    });
-  }, [router]);
-
-  if (me === null || me === "signed_out") return <p className="text-ink-soft">Checking your sign-in...</p>;
-  if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <p>
-        Signed in as <strong>{me.user.email}</strong>
-      </p>
+    <div className="grid gap-2 border-t border-ink/10 px-2 pt-4">
+      <div className="flex items-center gap-3">
+        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-ink/10 font-bold">
+          {(user.name || user.email).charAt(0).toUpperCase()}
+        </span>
+        <p className="min-w-0 text-sm leading-snug">
+          <span className="block text-ink-soft">Signed in as</span>{" "}
+          <strong className="block truncate" title={user.email}>
+            {user.email}
+          </strong>
+        </p>
+      </div>
       <button
         type="button"
         disabled={signingOut}
-        className="font-bold underline disabled:cursor-progress disabled:opacity-70 decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep"
+        className="btn btn-quiet btn-sm justify-self-start"
         onClick={async () => {
           setSigningOut(true);
           setSignOutFailed(false);
@@ -37,10 +38,11 @@ export function Account() {
           setSigningOut(false);
         }}
       >
+        <Icon name="out" className="size-4" />
         Sign out
       </button>
       {signOutFailed && (
-        <p role="alert" className="waitlist-error">
+        <p role="alert" className="waitlist-error text-sm">
           Sign out didn&apos;t go through. Try again in a moment.
         </p>
       )}

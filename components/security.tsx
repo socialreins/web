@@ -2,14 +2,11 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { useRouter } from "next/navigation";
 import {
   addPasskey,
-  getMe,
   listPasskeys,
   removePasskey,
   type Failure,
-  type MeResult,
   type Passkey,
 } from "@/lib/auth";
 import { signInLink } from "@/components/team-ui";
@@ -48,25 +45,8 @@ function Done({ text, focusKey }: { text: string; focusKey: number }) {
   );
 }
 
-// The session cookie is on the API host, invisible to Next server code, so the check runs here.
 export function Security() {
-  const router = useRouter();
-  const [me, setMe] = useState<MeResult | null>(null);
-
-  useEffect(() => {
-    getMe().then((r) => {
-      if (r === "signed_out") router.replace("/login");
-      else setMe(r);
-    });
-  }, [router]);
-
-  if (me === null || me === "signed_out") return <p className="text-ink-soft">Checking your sign-in...</p>;
-  if (me === "error") return <p role="alert" className="waitlist-error">Sign-in couldn&apos;t be checked. Reload to try again.</p>;
-  return (
-    <>
-      <PasskeysSection />
-    </>
-  );
+  return <PasskeysSection />;
 }
 
 const added = (iso: string) => new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
@@ -129,7 +109,7 @@ function PasskeysSection() {
 
   return (
     <section aria-labelledby="passkeys-heading" className="grid gap-3">
-      <h2 id="passkeys-heading" className="font-display text-2xl font-extrabold tracking-tight">
+      <h2 id="passkeys-heading" className="font-display text-xl font-extrabold tracking-tight">
         Passkeys
       </h2>
       <p className="text-ink-soft">Sign in with Face ID, Touch ID or your device PIN.</p>
