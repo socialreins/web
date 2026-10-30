@@ -199,3 +199,13 @@ test("disconnect asks to sign in again when brain needs it", async ({ page }) =>
   await expect(page.getByText("Alice", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Disconnect Alice" })).toBeFocused();
 });
+
+test("flags a Bluesky account whose app password has no DM access", async ({ page }) => {
+  await signedIn(page, "owner", [{ ...alice, dm_access: false }, { ...alice, id: "c3", handle: "carol.bsky.social", display_name: "Carol", dm_access: true }]);
+  await page.goto("/app/connections");
+  const notes = page.getByText("DMs off.");
+  await expect(notes).toHaveCount(1);
+  await expect(page.getByRole("listitem").filter({ hasText: "Alice" })).toContainText("Allow access to your direct messages");
+  await expect(page.getByRole("listitem").filter({ hasText: "Carol" })).not.toContainText("DMs off");
+  await expect(page.locator("#bluesky-app-password-note")).toContainText("Allow access to your direct messages");
+});

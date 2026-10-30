@@ -100,6 +100,11 @@ body { margin: 0; font-family: var(--font-body); font-size: 1.0625rem; line-heig
 .tone[data-status="failed"] { background: #fde2e1; color: #a8160f; }
 .tone[data-status="deleted"] { text-decoration: line-through; }
 .tone[data-status="draft"] { background: transparent; outline: 1.5px dashed color-mix(in srgb, var(--color-ink) 30%, transparent); outline-offset: -1.5px; }
+.tone[data-status="sent"] { background: #e2f2e7; color: #17603a; }
+.tone[data-status="running"] { background: #e3efff; color: #0a4fa8; }
+.tone[data-kind="comment"] { background: #e3efff; color: #0a4fa8; }
+.tone[data-kind="mention"] { background: #e2f2e7; color: #17603a; }
+.tone[data-kind="dm"] { background: #ffeadf; color: #a32a06; }
 .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
 }
 

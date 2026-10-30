@@ -9,6 +9,8 @@ export type Connection = {
   avatar_url: string | null;
   token_expires_at: string | null;
   set_ids: string[];
+  // Bluesky: the app password may read and send DMs. brain re-checks it on every poll.
+  dm_access: boolean;
   created_at: string;
 };
 export type Provider = { provider: string; configured: boolean };

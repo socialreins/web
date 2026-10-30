@@ -93,6 +93,17 @@ const codes = [
   "not_editable",
   "not_deletable",
   "publish_quota",
+  "invalid_filters",
+  "too_many_inboxes",
+  "all_inbox",
+  "invalid_state",
+  "invalid_text",
+  "reply_in_progress",
+  "invalid_trigger",
+  "invalid_conditions",
+  "invalid_actions",
+  "invalid_fallback",
+  "too_many_automations",
 ] as const;
 export type Failure = (typeof codes)[number] | "rate_limited" | "signed_out" | "timeout" | "error";
 export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };
