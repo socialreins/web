@@ -243,3 +243,19 @@ test.describe("on a phone", () => {
     await expect(page).toHaveURL("/app/inbox");
   });
 });
+
+test("load more stays reachable under a kind filter", async ({ page }) => {
+  await brain(page, "owner", { items: [item("p1", "comment", "First page")] });
+  await page.route(/\/v1\/inboxes\/all\/items/, (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    return route.fulfill({
+      json: cursor ? { items: [item("p9", "dm", "Older DM", { received_at: ago(600) })], next_cursor: null } : { items: [item("p1", "comment", "First page")], next_cursor: "p1" },
+    });
+  });
+  await page.goto("/app/inbox");
+  await page.getByRole("button", { name: "DMs" }).click();
+  await expect(page.getByText("No items of this kind here.")).toBeVisible();
+  await page.getByRole("button", { name: "Load more" }).click();
+  await expect(page.getByRole("link", { name: /Older DM/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Load more" })).toHaveCount(0);
+});

@@ -99,7 +99,7 @@ test("lists automations with summary, runs and a switch", async ({ page }) => {
   await expect(card).toContainText("Comment contains: price, link");
   await expect(card).toContainText("All accounts. Sends a DM, or replies publicly if it can't.");
   await expect(card).toContainText("3 runs, last");
-  const toggle = card.getByRole("switch", { name: "Price to DM on" });
+  const toggle = card.getByRole("switch", { name: "Price to DM" });
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "false");
@@ -171,6 +171,7 @@ test("detail shows runs with readable reasons, edits and deletes", async ({ page
   await page.getByLabel("If the DM can't be delivered, reply publicly instead").uncheck();
   await page.getByRole("button", { name: "Save automation" }).click();
   await expect(page.getByRole("button", { name: "Edit" })).toBeFocused();
+  await expect(page.getByRole("status").filter({ hasText: "Automation saved." })).toBeVisible();
   expect(state.bodies[0]).toMatchObject({
     actions: [
       { type: "send_dm", text: "Hi {name}, here it is" },

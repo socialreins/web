@@ -43,12 +43,15 @@ function Counter({ id, n, max }: { id: string; n: number; max: number }) {
 export function AutomationForm({
   automation: a,
   accounts,
+  ready,
   sets,
   onSaved,
   onCancel,
 }: {
   automation?: Automation;
   accounts: Connection[];
+  // The accounts have loaded, so post links by handle can be resolved.
+  ready: boolean;
   sets: SocialSet[];
   onSaved: (a: Automation) => void;
   onCancel?: () => void;
@@ -244,7 +247,7 @@ export function AutomationForm({
         </label>
         <Status problem={problem} done={done} overrides={automationMessages} />
         <div className="flex flex-wrap gap-2">
-          <button type="submit" className="btn btn-primary" disabled={busy !== null}>
+          <button type="submit" className="btn btn-primary" disabled={busy !== null || !ready}>
             {busy ? "Saving..." : a ? "Save automation" : "Create automation"}
           </button>
           {onCancel && (

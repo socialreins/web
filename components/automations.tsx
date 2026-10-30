@@ -37,13 +37,14 @@ export const actionsSummary = (a: Automation) => {
 
 // The team's accounts and sets, for the scope fields and summaries.
 function useScopeData() {
-  const [accounts, setAccounts] = useState<Connection[]>([]);
+  const [accounts, setAccounts] = useState<Connection[] | null>(null);
   const [sets, setSets] = useState<SocialSet[]>([]);
   useEffect(() => {
-    listConnections().then((r) => Array.isArray(r) && setAccounts(r));
+    // A failed load still settles, so the form can be used; post links by handle then need a reload.
+    listConnections().then((r) => setAccounts(Array.isArray(r) ? r : []));
     listSets().then((r) => Array.isArray(r) && setSets(r));
   }, []);
-  return { accounts, sets };
+  return { accounts: accounts ?? [], ready: accounts !== null, sets };
 }
 
 // On and off as a switch. Members see the state as text.
@@ -56,7 +57,7 @@ function ActiveSwitch({ automation: a, canManage, onChange }: { automation: Auto
         type="button"
         role="switch"
         aria-checked={a.active}
-        aria-label={`${a.name} on`}
+        aria-label={a.name}
         disabled={busy !== null}
         onClick={() => run("switch", () => switchAutomation(a.id, !a.active), (r) => {
           onChange(r);
@@ -92,10 +93,11 @@ export function Automations() {
     listAutomations().then((r) => {
       setList(r);
       // One page of runs each: 50 a page, so "50+" past that.
+      // shortcut: one request per automation (at most 50), upgrade to a count in the list response if teams hit rate limits.
       if (Array.isArray(r))
         for (const a of r)
           listRuns(a.id).then((p) => {
-            if (isFailure(p)) return;
+            if (isFailure(p)) return setRuns((m) => ({ ...m, [a.id]: "Runs couldn't be counted" }));
             const n = p.runs.length;
             const text = n === 0 ? "No runs yet" : `${n}${p.next_cursor ? "+" : ""} ${n === 1 ? "run" : "runs"}, last ${when(p.runs[0]!.created_at)}`;
             setRuns((m) => ({ ...m, [a.id]: text }));
@@ -170,11 +172,13 @@ export function AutomationDetail({ id }: { id: string }) {
   const [runs, setRuns] = useState<{ runs: Run[]; next: string | null } | Failure | null>(null);
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const { accounts, sets } = useScopeData();
+  const [saved, setSaved] = useState<{ text: string; n: number } | null>(null);
+  const { accounts, ready, sets } = useScopeData();
   const del = useAction();
   const more = useAction();
   const editRef = useRef<HTMLButtonElement>(null);
   const deleteRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     getAutomation(id).then(setA);
@@ -193,7 +197,7 @@ export function AutomationDetail({ id }: { id: string }) {
     const ok = await del.run("delete", () => deleteAutomation(x.id), () => {
       router.push("/app/automations");
     });
-    if (!ok) deleteRef.current?.focus();
+    if (!ok) confirmRef.current?.focus();
   }
 
   const close = () => {
@@ -207,11 +211,13 @@ export function AutomationDetail({ id }: { id: string }) {
         <AutomationForm
           automation={a}
           accounts={accounts}
+          ready={ready}
           sets={sets}
           onCancel={close}
           onSaved={(saved) => {
             setA(saved);
             close();
+            setSaved((n) => ({ text: "Automation saved.", n: (n?.n ?? 0) + 1 }));
           }}
         />
       ) : (
@@ -223,7 +229,7 @@ export function AutomationDetail({ id }: { id: string }) {
               </h2>
               <p>{triggerSummary(a.conditions)}</p>
               <p className="text-sm text-ink-soft">
-                {scopeSummary(a.conditions, accounts, sets)}. {actionsSummary(a)}. On since {when(a.activated_at)}.
+                {scopeSummary(a.conditions, accounts, sets)}. {actionsSummary(a)}.{a.active ? ` On since ${when(a.activated_at)}.` : " Off."}
               </p>
             </div>
             <ActiveSwitch automation={a} canManage={canManage} onChange={setA} />
@@ -249,6 +255,7 @@ export function AutomationDetail({ id }: { id: string }) {
                   Delete {a.name} and its run history? Replies it sent stay.
                 </p>
                 <button
+                  ref={confirmRef}
                   type="button"
                   autoFocus
                   className="btn btn-primary btn-sm"
@@ -282,6 +289,11 @@ export function AutomationDetail({ id }: { id: string }) {
               </div>
             ))}
           <Status problem={del.problem} done={del.done} overrides={automationMessages} />
+          {!del.problem && saved && (
+            <p key={saved.n} role="status" className="waitlist-done">
+              {saved.text}
+            </p>
+          )}
         </section>
       )}
 
@@ -313,7 +325,7 @@ export function AutomationDetail({ id }: { id: string }) {
                     </time>
                     {r.reason && <span className="text-sm font-bold">{reason(r.reason)}</span>}
                     <Link href={`/app/inbox?item=${encodeURIComponent(r.inbox_item_id)}`} className="ml-auto text-sm font-bold underline decoration-signal decoration-2 underline-offset-4">
-                      Open the comment
+                      Open the comment<span className="sr-only"> from {when(r.created_at)}</span>
                     </Link>
                   </div>
                   {r.results.length > 0 && (
@@ -354,9 +366,9 @@ export function AutomationDetail({ id }: { id: string }) {
 export function NewAutomation() {
   const { user } = useSession();
   const router = useRouter();
-  const { accounts, sets } = useScopeData();
+  const { accounts, ready, sets } = useScopeData();
   if (!manages(user.current_team.role)) return <p className="text-ink-soft">Only team owners and admins can create automations.</p>;
-  return <AutomationForm accounts={accounts} sets={sets} onSaved={(a) => router.push(`/app/automations/${a.id}`)} />;
+  return <AutomationForm accounts={accounts} ready={ready} sets={sets} onSaved={(a) => router.push(`/app/automations/${a.id}`)} />;
 }
 
 // The page header's action, for owners and admins only.

@@ -97,6 +97,7 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
   const [shown, setShown] = useState<{ id: string; item: Item | Failure } | null>(null);
   const [editing, setEditing] = useState<InboxT | "new" | null>(null);
   const [opened, setOpened] = useState<string | null>(null);
+  const [reloads, setReloads] = useState(0);
 
   useEffect(() => {
     listInboxes().then(setInboxes);
@@ -118,9 +119,11 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
   const key = `${currentId}:${state}`;
   const page = loaded?.key === key ? loaded.page : null;
   const setPage = (f: (p: Page | Failure | null) => Page | Failure | null) =>
+    // A late answer for another inbox or tab leaves the newer page alone.
     setLoaded((l) => {
-      const next = f(l?.key === key ? l.page : null);
-      return next ? { key, page: next } : null;
+      if (l?.key !== key) return l;
+      const next = f(l.page);
+      return next ? { key, page: next } : l;
     });
   const detail = itemId && shown?.id === itemId ? shown.item : null;
   const setDetail = (i: Item) => setShown({ id: i.id, item: i });
@@ -135,7 +138,7 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
     return () => {
       live = false;
     };
-  }, [currentId, state]);
+  }, [currentId, state, reloads]);
 
   useEffect(() => {
     if (!itemId) return;
@@ -163,6 +166,19 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
     );
   }
 
+  // The kind chips filter loaded pages, so more pages may still hold that kind.
+  const loadMoreButton = page && !isFailure(page) && page.next && (
+    <>
+      <button type="button" className="btn btn-secondary btn-sm mt-3" disabled={more === "loading"} onClick={loadMore}>
+        {more === "loading" ? "Loading..." : "Load more"}
+      </button>
+      {isFailure(more) && (
+        <p role="alert" className="waitlist-error mt-2">
+          More items couldn&apos;t be loaded. {problemText(more)}
+        </p>
+      )}
+    </>
+  );
   const items = page && !isFailure(page) ? page.items.filter((i) => kind === "all" || i.kind === kind) : [];
   const noAccounts = Array.isArray(accounts) && accounts.length === 0;
   const accountList = Array.isArray(accounts) ? accounts : [];
@@ -282,6 +298,7 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
             Items couldn&apos;t be loaded. {problemText(page)}
           </p>
         ) : items.length === 0 ? (
+          <>
           <p className="card p-5 text-ink-soft">
             {state === "done"
               ? "Nothing marked done yet."
@@ -289,6 +306,8 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
                 ? "No items of this kind here."
                 : "Nothing here yet. New comments, mentions and DMs show up here within a minute."}
           </p>
+          {loadMoreButton}
+          </>
         ) : (
           <>
             <ul aria-label="Items" className="card divide-y divide-ink/10 overflow-hidden">
@@ -329,16 +348,7 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
                 );
               })}
             </ul>
-            {page.next && (
-              <button type="button" className="btn btn-secondary btn-sm mt-3" disabled={more === "loading"} onClick={loadMore}>
-                {more === "loading" ? "Loading..." : "Load more"}
-              </button>
-            )}
-            {isFailure(more) && (
-              <p role="alert" className="waitlist-error mt-2">
-                More items couldn&apos;t be loaded. {problemText(more)}
-              </p>
-            )}
+            {loadMoreButton}
           </>
         )}
       </section>
@@ -371,9 +381,11 @@ export function Inbox({ inboxId }: { inboxId?: string }) {
           accounts={accountList}
           sets={sets}
           onClose={() => setEditing(null)}
-          onSaved={(saved) =>
-            setInboxes((l) => (Array.isArray(l) ? (l.some((x) => x.id === saved.id) ? l.map((x) => (x.id === saved.id ? saved : x)) : [...l, saved]) : l))
-          }
+          onSaved={(saved) => {
+            setInboxes((l) => (Array.isArray(l) ? (l.some((x) => x.id === saved.id) ? l.map((x) => (x.id === saved.id ? saved : x)) : [...l, saved]) : l));
+            // Its filters changed, so its items did too.
+            if (saved.id === currentId) setReloads((n) => n + 1);
+          }}
           onDeleted={(id) => {
             setInboxes((l) => (Array.isArray(l) ? l.filter((x) => x.id !== id) : l));
             if (id === inboxId) router.replace("/app/inbox");
@@ -403,6 +415,8 @@ function Detail({ item, account, focus, onChange }: { item: Item; account?: Conn
 
   async function onReply(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Ctrl+Enter submits even while the button is disabled.
+    if (reply.busy || !text.trim() || count > max) return;
     setSendError(null);
     await reply.run(
       "reply",
