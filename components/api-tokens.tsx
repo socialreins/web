@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import type { Failure } from "@/lib/auth";
 import { useSession } from "@/components/app-shell";
 import { createToken, listTokens, revokeToken, type ApiToken } from "@/lib/api-tokens";
@@ -41,13 +42,24 @@ function TokensPage() {
   const [revoking, setRevoking] = useState<string | null>(null);
   const main = useAction();
   const secretRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  // Closing a panel unmounts the focused button; these put focus somewhere sensible.
+  const hideSecret = () => {
+    flushSync(() => setCreated(null));
+    nameRef.current?.focus();
+  };
+  const cancelRevoke = (id: string) => {
+    flushSync(() => setRevoking(null));
+    document.getElementById(`revoke-${id}`)?.focus();
+  };
 
   useEffect(() => {
     listTokens().then(setTokens);
     listSets().then((r) => Array.isArray(r) && setSets(r));
   }, []);
   useEffect(() => {
-    if (created) secretRef.current?.select();
+    // Focus selects it too (onFocus), and a screen reader reads the one-time secret.
+    if (created) secretRef.current?.focus();
   }, [created]);
 
   function onCreate(e: FormEvent<HTMLFormElement>) {
@@ -93,6 +105,7 @@ function TokensPage() {
       <form onSubmit={onCreate} className="waitlist">
         <label htmlFor="token-name">Token name</label>
         <input
+          ref={nameRef}
           id="token-name"
           required
           maxLength={60}
@@ -142,7 +155,7 @@ function TokensPage() {
           <pre className="overflow-x-auto rounded-xl bg-ink/5 p-3 text-sm">
             <code>{`curl -H "Authorization: Bearer <token>" ${apiUrl}/v1/me`}</code>
           </pre>
-          <button type="button" className={`justify-self-start ${linkButton}`} onClick={() => setCreated(null)}>
+          <button type="button" className={`justify-self-start ${linkButton}`} onClick={hideSecret}>
             Done, hide the secret
           </button>
         </div>
@@ -180,12 +193,13 @@ function TokensPage() {
                   >
                     {main.busy === `revoke:${t.id}` ? "Revoking..." : "Yes, revoke"}
                   </button>
-                  <button type="button" className={linkButton} disabled={main.busy !== null} onClick={() => setRevoking(null)}>
+                  <button type="button" className={linkButton} disabled={main.busy !== null} onClick={() => cancelRevoke(t.id)}>
                     Cancel
                   </button>
                 </div>
               ) : (
                 <button
+                  id={`revoke-${t.id}`}
                   type="button"
                   className={`justify-self-start ${linkButton}`}
                   disabled={main.busy !== null}

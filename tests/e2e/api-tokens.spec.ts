@@ -101,11 +101,15 @@ test("create asks for a fresh sign-in, then shows the secret once", async ({ pag
   const secret = page.getByLabel("Secret for Clients CM");
   await expect(secret).toHaveValue(SECRET);
   await expect(secret).toHaveAttribute("readonly");
+  await expect(secret).toBeFocused();
   await expect(page.getByText("It won't be shown again.")).toBeVisible();
   await expect(page.getByText(/curl -H "Authorization: Bearer <token>" http:\/\/\S+\/v1\/me/)).toBeVisible();
   await page.getByRole("button", { name: "Copy" }).click();
   await expect(page.getByRole("button", { name: "Copied" })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(SECRET);
+  await page.getByRole("button", { name: "Done, hide the secret" }).click();
+  await expect(page.getByLabel(/Secret for/)).toHaveCount(0);
+  await expect(page.getByLabel("Token name")).toBeFocused();
   await expect(items(page).first()).toContainText("Clients CM");
   expect(state.bodies).toEqual([
     { name: "Clients CM", social_set_id: "s1", expires_in_days: 90 },
@@ -138,6 +142,7 @@ test("revoke asks first", async ({ page }) => {
   const yes = page.getByRole("button", { name: "Yes, revoke" });
   await expect(yes).toBeFocused();
   await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("button", { name: "Revoke Content Machine" })).toBeFocused();
   expect(state.tokens).toHaveLength(2);
   await page.getByRole("button", { name: "Revoke Content Machine" }).click();
   await expect(yes).toHaveAccessibleDescription(/Revoke Content Machine\?/);
