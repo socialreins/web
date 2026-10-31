@@ -5,6 +5,7 @@ declare global {
   interface Window {
     __turnstile?: Stub;
     __resets?: number;
+    __renders?: number;
   }
 }
 
@@ -19,7 +20,8 @@ async function stubTurnstile(page: Page) {
     window.turnstile = {
       render: (_el, opts) => {
         window.__turnstile = opts as unknown as Stub;
-        return "w1";
+        window.__renders = (window.__renders ?? 0) + 1;
+        return `w${window.__renders}`;
       },
       reset: () => void (window.__resets! += 1),
       remove: () => {},
@@ -128,6 +130,31 @@ test("with Turnstile on, the login link request sends the token and maps captcha
   await page.getByRole("button", { name: "Email me a link" }).click();
   await expect(page.locator("#login-message")).toHaveText("We couldn't check that right now. Try again in a minute.");
   expect(sent).toEqual({ email: "someone@example.com", turnstile_token: "tok-l" });
+});
+
+test("with Turnstile on, Use a different email renders the widget again and sends a fresh token", async ({ page }) => {
+  await stubTurnstile(page);
+  await providers(page, "0xSITE");
+  const sent: Record<string, unknown>[] = [];
+  await page.route("**/auth/link", (route) => {
+    sent.push(body(route.request()));
+    return route.fulfill({ status: 202, json: {} });
+  });
+  await page.goto("/login");
+  await page.getByLabel("Email", { exact: true }).fill("one@example.com");
+  await solve(page, "tok-1");
+  await page.getByRole("button", { name: "Email me a link" }).click();
+  await page.getByRole("button", { name: "Use a different email" }).click();
+  await expect.poll(() => page.evaluate(() => window.__renders)).toBe(2);
+  await page.getByLabel("Email", { exact: true }).fill("two@example.com");
+  await expect(page.getByRole("button", { name: "Email me a link" })).toBeDisabled();
+  await solve(page, "tok-2");
+  await page.getByRole("button", { name: "Email me a link" }).click();
+  await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+  expect(sent).toEqual([
+    { email: "one@example.com", turnstile_token: "tok-1" },
+    { email: "two@example.com", turnstile_token: "tok-2" },
+  ]);
 });
 
 test("with Turnstile off, the waitlist and login link submit without a token", async ({ page }) => {

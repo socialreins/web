@@ -46,18 +46,19 @@ function load(): Promise<void> {
 // undefined (Turnstile off, or not known yet) renders nothing and `missing` stays false.
 // Tokens are single-use, so call `reset` after every submit.
 export function useTurnstile(siteKey: string | null | undefined, action: string) {
-  const ref = useRef<HTMLDivElement>(null);
+  // A callback ref (state, not useRef) so a remounted container renders a fresh widget.
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
   const id = useRef<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!siteKey) return;
+    if (!siteKey || !el) return;
     let gone = false;
     load().then(
       () => {
-        if (gone || !ref.current || !window.turnstile) return;
-        id.current = window.turnstile.render(ref.current, {
+        if (gone || !window.turnstile) return;
+        id.current = window.turnstile.render(el, {
           sitekey: siteKey,
           action,
           callback: (t) => {
@@ -79,7 +80,7 @@ export function useTurnstile(siteKey: string | null | undefined, action: string)
       id.current = null;
       setToken(null);
     };
-  }, [siteKey, action]);
+  }, [siteKey, action, el]);
 
   function reset() {
     setToken(null);
@@ -88,7 +89,7 @@ export function useTurnstile(siteKey: string | null | undefined, action: string)
 
   const widget = siteKey ? (
     <div className="grid gap-2">
-      <div ref={ref} />
+      <div ref={setEl} />
       {failed && (
         <p role="alert" className="waitlist-error">
           {captchaMessages.captcha_unavailable}
