@@ -1,7 +1,7 @@
-import { apiUrl } from "@/lib/waitlist";
+import { apiUrl, captchaError, type Captcha } from "@/lib/waitlist";
 import { createCredential, getCredential, type CreationOptionsJSON, type RequestOptionsJSON } from "@/lib/webauthn";
 
-export type LinkResult = "sent" | "invalid" | "rate_limited" | "timeout" | "error";
+export type LinkResult = "sent" | "invalid" | Captcha | "rate_limited" | "timeout" | "error";
 export type Role = "owner" | "admin" | "member";
 export type Team = { id: string; name: string; role: Role };
 export type User = {
@@ -22,13 +22,18 @@ const opts = (init: RequestInit = {}): RequestInit => ({
 });
 
 // The API answers 202 for any valid email, so the reply never says whether an account exists.
-export async function requestLink(email: string): Promise<LinkResult> {
+// `token` is the Turnstile token, sent only when brain has Turnstile on.
+export async function requestLink(email: string, token: string | null = null): Promise<LinkResult> {
   try {
     const res = await fetch(
       `${apiUrl}/auth/link`,
-      opts({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) }),
+      opts({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, ...(token && { turnstile_token: token }) }) }),
     );
     if (res.ok) return "sent";
+    if (res.status === 422 || res.status === 503) {
+      const captcha = await captchaError(res);
+      if (captcha) return captcha;
+    }
     if (res.status === 422) return "invalid";
     if (res.status === 429) return "rate_limited";
     return "error";
@@ -221,17 +226,21 @@ export async function api<T = "ok">(path: string, method = "GET", body?: unknown
   }
 }
 
+export type Providers = { google: boolean; turnstileSiteKey: string | null };
+
 // Sign-in methods this brain offers besides email links and passkeys; self-hosters may skip Google.
+// turnstileSiteKey is null when brain has Turnstile off, so forms submit without a token.
 // A network failure is retried once after `retryMs`; any answer from brain, even an error, is final.
-export async function getProviders(retryMs = 2000): Promise<{ google: boolean }> {
+export async function getProviders(retryMs = 2000): Promise<Providers> {
   let res = await request("/auth/providers");
   if (typeof res === "string") {
     await new Promise((done) => setTimeout(done, retryMs));
     res = await request("/auth/providers");
   }
-  if (typeof res === "string" || !res.ok) return { google: false };
+  if (typeof res === "string" || !res.ok) return { google: false, turnstileSiteKey: null };
   const body = await res.json().catch(() => null);
-  return { google: body?.google === true };
+  const key: unknown = body?.turnstile_site_key;
+  return { google: body?.google === true, turnstileSiteKey: typeof key === "string" && key ? key : null };
 }
 
 // A path on this site to return to after sign-in, else /app. Mirrors brain's oauth::safe_next, and

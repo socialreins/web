@@ -12,7 +12,7 @@ describe("getProviders", () => {
   it("reads /auth/providers with credentials", async () => {
     const fetch = vi.fn(async () => Response.json({ google: true }));
     vi.stubGlobal("fetch", fetch);
-    expect(await getProviders()).toEqual({ google: true });
+    expect(await getProviders()).toEqual({ google: true, turnstileSiteKey: null });
     expect(call(fetch, 0)[0]).toBe(`${apiUrl}/auth/providers`);
     expect(call(fetch, 0)[1]).toMatchObject({ credentials: "include" });
   });
@@ -25,19 +25,28 @@ describe("getProviders", () => {
       reply(500),
     ]) {
       vi.stubGlobal("fetch", fetch);
-      expect(await getProviders(0)).toEqual({ google: false });
+      expect(await getProviders(0)).toEqual({ google: false, turnstileSiteKey: null });
       expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("reads the Turnstile site key, null when off or not a string", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ google: false, turnstile_site_key: "0xKEY" })));
+    expect(await getProviders(0)).toEqual({ google: false, turnstileSiteKey: "0xKEY" });
+    for (const key of [null, "", 7]) {
+      vi.stubGlobal("fetch", vi.fn(async () => Response.json({ google: true, turnstile_site_key: key })));
+      expect(await getProviders(0)).toEqual({ google: true, turnstileSiteKey: null });
     }
   });
 
   it("retries a network failure once", async () => {
     let fetch = vi.fn().mockRejectedValueOnce(new TypeError("offline")).mockResolvedValueOnce(Response.json({ google: true }));
     vi.stubGlobal("fetch", fetch);
-    expect(await getProviders(0)).toEqual({ google: true });
+    expect(await getProviders(0)).toEqual({ google: true, turnstileSiteKey: null });
     expect(fetch).toHaveBeenCalledTimes(2);
     fetch = vi.fn().mockRejectedValue(new TypeError("offline"));
     vi.stubGlobal("fetch", fetch);
-    expect(await getProviders(0)).toEqual({ google: false });
+    expect(await getProviders(0)).toEqual({ google: false, turnstileSiteKey: null });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -49,7 +58,7 @@ describe("getProviders", () => {
     await vi.advanceTimersByTimeAsync(1999);
     expect(fetch).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
-    expect(await pending).toEqual({ google: true });
+    expect(await pending).toEqual({ google: true, turnstileSiteKey: null });
     vi.useRealTimers();
   });
 

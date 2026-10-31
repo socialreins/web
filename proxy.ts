@@ -3,12 +3,16 @@ import { brainUrl } from "@/lib/brain-url";
 
 const dev = process.env.NODE_ENV === "development";
 
+const turnstile = "https://challenges.cloudflare.com";
+
 // The CSP is set here, not in next.config headers (fixed at build), because connect-src names brain's origin from BRAIN_URL at run time.
 // shortcut: 'unsafe-inline' scripts because the pages are static (no per-request nonce); move to nonces if pages go dynamic.
 const csp = (api: string) =>
   [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
+    // Cloudflare Turnstile loads its script and runs its check in a frame (components/turnstile.tsx).
+    `script-src 'self' 'unsafe-inline' ${turnstile}${dev ? " 'unsafe-eval'" : ""}`,
+    `frame-src ${turnstile}`,
     "style-src 'self' 'unsafe-inline'",
     // Bluesky avatars; safeAvatar in lib/connections.ts keeps to the same prefix.
     "img-src 'self' data: https://cdn.bsky.app/img/",

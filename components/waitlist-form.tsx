@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
+import { captchaMessages, useTurnstile } from "@/components/turnstile";
+import { getProviders } from "@/lib/auth";
 import { joinWaitlist, type WaitlistResult } from "@/lib/waitlist";
 
 const messages: Record<WaitlistResult, string> = {
+  ...captchaMessages,
   joined: "You're on the waitlist for the hosted version.",
   invalid: "That email address doesn't look right. Check it and try again.",
   rate_limited: "Too many attempts from this connection. Wait a minute, then try again.",
@@ -15,6 +18,12 @@ const messages: Record<WaitlistResult, string> = {
 export function WaitlistForm() {
   const [status, setStatus] = useState<WaitlistResult | "idle" | "sending">("idle");
   const messageRef = useRef<HTMLParagraphElement>(null);
+  const [siteKey, setSiteKey] = useState<string | null>();
+  const turnstile = useTurnstile(siteKey, "waitlist");
+
+  useEffect(() => {
+    getProviders().then((p) => setSiteKey(p.turnstileSiteKey));
+  }, []);
 
   useEffect(() => {
     if (status === "joined") messageRef.current?.focus();
@@ -25,7 +34,9 @@ export function WaitlistForm() {
     const email = String(new FormData(e.currentTarget).get("email") ?? "").trim();
     // Commit the empty message first so a repeated identical error is announced again.
     flushSync(() => setStatus("sending"));
-    setStatus(await joinWaitlist(email));
+    const result = await joinWaitlist(email, "landing", turnstile.token);
+    turnstile.reset();
+    setStatus(result);
   }
 
   const joined = status === "joined";
@@ -46,10 +57,11 @@ export function WaitlistForm() {
               aria-invalid={status === "invalid" || undefined}
               aria-describedby="waitlist-note waitlist-message"
             />
-            <button type="submit" disabled={status === "sending"}>
+            <button type="submit" disabled={status === "sending" || turnstile.missing}>
               {status === "sending" ? "Joining..." : "Join the waitlist"}
             </button>
           </div>
+          {turnstile.widget}
           <p id="waitlist-note" className="waitlist-note">
             The hosted version will be a paid subscription, coming later.
           </p>

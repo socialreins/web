@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalPage, Mail } from "@/components/legal-page";
+import { ContactLink, LegalPage } from "@/components/legal-page";
 
 export const metadata: Metadata = { title: "Terms of Service: SocialReins" };
 
@@ -9,7 +9,7 @@ export default function Terms() {
     <LegalPage title="Terms of Service">
       <p>
         These terms cover the hosted SocialReins service at socialreins.com, run by Bytech. By creating an account or
-        using the service, you agree to them. Questions go to <Mail />.
+        using the service, you agree to them. If you have a question, <ContactLink />.
       </p>
 
       <h2>The software</h2>

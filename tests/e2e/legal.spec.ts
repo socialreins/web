@@ -10,7 +10,7 @@ test("privacy policy covers Google user data and is dated", async ({ page }) => 
     "href",
     "https://developers.google.com/terms/api-services-user-data-policy",
   );
-  await expect(page.getByRole("link", { name: "hello@socialreins.com" }).first()).toHaveAttribute("href", "mailto:hello@socialreins.com");
+  await expect(page.getByRole("link", { name: "contact us" }).first()).toHaveAttribute("href", "/contact");
 });
 
 test("terms are dated and link the privacy policy", async ({ page }) => {

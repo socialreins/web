@@ -23,7 +23,12 @@ body { margin: 0; font-family: var(--font-body); font-size: 1.0625rem; line-heig
   background: var(--color-paper); color: var(--color-ink);
   border: 2px solid var(--color-ink); border-radius: 999px;
 }
-.waitlist input[aria-invalid] { border-color: var(--color-signal-deep); }
+.waitlist input[aria-invalid], .waitlist textarea[aria-invalid] { border-color: var(--color-signal-deep); }
+.waitlist textarea {
+  font: inherit; padding: 0.8rem 1rem; resize: vertical;
+  background: var(--color-paper); color: var(--color-ink);
+  border: 2px solid var(--color-ink); border-radius: 1.25rem;
+}
 .waitlist button {
   font: inherit; font-weight: 700; padding: 0.8rem 1.4rem; cursor: pointer;
   background: var(--color-ink); color: var(--color-paper);
@@ -115,6 +120,11 @@ body { margin: 0; font-family: var(--font-body); font-size: 1.0625rem; line-heig
   border: 1.5px solid color-mix(in srgb, var(--color-ink) 20%, transparent);
 }
 .app-main .waitlist input:focus, .app-main .waitlist select:focus { border-color: var(--color-ink); }
-.app-main .waitlist input[aria-invalid] { border-color: var(--color-signal-deep); }
+.app-main .waitlist input[aria-invalid], .waitlist textarea[aria-invalid] { border-color: var(--color-signal-deep); }
+.waitlist textarea {
+  font: inherit; padding: 0.8rem 1rem; resize: vertical;
+  background: var(--color-paper); color: var(--color-ink);
+  border: 2px solid var(--color-ink); border-radius: 1.25rem;
+}
 .app-main .waitlist button { font-size: 0.95rem; padding: 0.55rem 1.1rem; border-width: 1.5px; }
 .app-main .waitlist-done { border-radius: 0.75rem; border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent); border-left: 5px solid var(--color-signal); font-size: 0.975rem; }

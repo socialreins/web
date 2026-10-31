@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { LogoMark } from "@/components/logo";
 
-export const contact = "hello@socialreins.com";
 export const updated = "29 October 2026";
 
 // Shared frame for /privacy and /terms: plain reading text, one column.
@@ -22,8 +21,8 @@ export function LegalPage({ title, children }: { title: string; children: ReactN
   );
 }
 
-export const Mail = () => (
-  <a href={`mailto:${contact}`} className="font-bold underline decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep">
-    {contact}
-  </a>
+export const ContactLink = () => (
+  <Link href="/contact" className="font-bold underline decoration-signal decoration-2 underline-offset-4 hover:text-signal-deep">
+    contact us
+  </Link>
 );

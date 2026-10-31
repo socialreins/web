@@ -24,6 +24,17 @@ describe("joinWaitlist", () => {
     expect(await joinWaitlist("a@b.co")).toBe(result);
   });
 
+  it("sends the Turnstile token when there is one and maps captcha errors", async () => {
+    const fetch = respond(200);
+    vi.stubGlobal("fetch", fetch);
+    await joinWaitlist("a@b.co", "landing", "tok");
+    expect(JSON.parse(fetch.mock.calls[0]![1].body)).toEqual({ email: "a@b.co", source: "landing", turnstile_token: "tok" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ error: "captcha_failed" }, { status: 422 })));
+    expect(await joinWaitlist("a@b.co", "landing", "tok")).toBe("captcha_failed");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ error: "captcha_unavailable" }, { status: 503 })));
+    expect(await joinWaitlist("a@b.co", "landing", "tok")).toBe("captcha_unavailable");
+  });
+
   it("reports a network failure as error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
     expect(await joinWaitlist("a@b.co")).toBe("error");
