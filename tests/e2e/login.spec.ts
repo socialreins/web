@@ -82,7 +82,10 @@ test("Continue with Google shows only when brain offers it, and starts at brain"
   await page.goto("/login");
   const google = page.getByRole("link", { name: "Continue with Google" });
   await expect(google).toHaveAttribute("href", /\/auth\/google\/start\?next=%2Fapp$/);
-  await expect(page.getByText("or", { exact: true })).toBeVisible();
+  // Passkey first, then Google, then the email link, each split by "or".
+  await expect(page.getByText("or", { exact: true })).toHaveCount(2);
+  const passkeyTop = (await page.getByRole("button", { name: "Sign in with a passkey" }).boundingBox())!.y;
+  expect(passkeyTop).toBeLessThan((await google.boundingBox())!.y);
 
   await page.unrouteAll();
   await page.route("**/auth/providers", (route) => route.fulfill({ json: { google: false } }));
