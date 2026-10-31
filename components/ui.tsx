@@ -4,6 +4,7 @@ import Link from "next/link";
 // Line icons on a 24x24 grid, drawn for the app. Decorative: every icon sits next to text or an aria-label.
 const paths = {
   posts: "M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11ZM4 9.5h16M8.5 2.5v3M15.5 2.5v3M8 13h3M8 16.5h6",
+  lists: "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01",
   inbox: "M4 13.5 6.2 5.6A2 2 0 0 1 8.1 4h7.8a2 2 0 0 1 1.9 1.6L20 13.5v4A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-4ZM4 13.5h4.5l1 2.5h5l1-2.5H20",
   automations: "M13 3 5 13.5h6.5L10.5 21 19 10.5h-6.5L13 3Z",
   accounts: "M9.5 14.5a4.5 4.5 0 0 1 0-6.4l2-2a4.5 4.5 0 0 1 6.4 6.4l-1.2 1.2M14.5 9.5a4.5 4.5 0 0 1 0 6.4l-2 2a4.5 4.5 0 0 1-6.4-6.4l1.2-1.2",

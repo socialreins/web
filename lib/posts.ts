@@ -25,6 +25,8 @@ export type Post = {
   created_at: string;
   updated_at: string;
   targets: Target[];
+  // The lists the post is in, with its 1-based position ("Part N") in each.
+  lists: { id: string; name: string; position: number }[];
 };
 export type PostInput = {
   social_set_id: string;
@@ -33,6 +35,8 @@ export type PostInput = {
   media: string[];
   // ISO time to publish; null keeps the post a draft. A past time means now.
   scheduled_at: string | null;
+  // A list to put the post in; one it is already in would move it to the end.
+  list_id?: string;
 };
 export type PostFilter = { social_set_id?: string; status?: PostStatus; from?: string; to?: string };
 

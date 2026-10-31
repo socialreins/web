@@ -20,6 +20,7 @@ import {
   type Post,
   type PostInput,
 } from "@/lib/posts";
+import { fitsList, listLists, partLabel, type PostList } from "@/lib/lists";
 import { listSets, type SocialSet } from "@/lib/sets";
 import { accountName, Avatar } from "@/components/connections";
 import { BlueskyNote, postMessages, StatusBadge, statusName } from "@/components/posts";
@@ -40,6 +41,8 @@ export function PostEditor({ id }: { id?: string }) {
   const [body, setBody] = useState("");
   const [media, setMedia] = useState<string[]>([]);
   const [at, setAt] = useState("");
+  const [lists, setLists] = useState<PostList[]>([]);
+  const [listId, setListId] = useState("");
   const [local, setLocal] = useState<ReactNode>(null);
   const [confirming, setConfirming] = useState(false);
   const [pollNote, setPollNote] = useState("");
@@ -58,6 +61,7 @@ export function PostEditor({ id }: { id?: string }) {
     setBody(p.body);
     setMedia(p.media);
     setAt(toLocalInput(p.status === "scheduled" ? p.scheduled_at : null));
+    setListId("");
   }
 
   useEffect(() => {
@@ -66,6 +70,7 @@ export function PostEditor({ id }: { id?: string }) {
       if (Array.isArray(r) && r[0]) setSetId((v) => v || r[0]!.id);
     });
     listConnections().then((r) => Array.isArray(r) && setAccounts(r));
+    listLists().then((r) => Array.isArray(r) && setLists(r));
     if (id)
       getPost(id).then((r) => {
         if (isFailure(r)) setPost(r);
@@ -120,6 +125,7 @@ export function PostEditor({ id }: { id?: string }) {
       body,
       media: images,
       scheduled_at: mode === "schedule" ? fromLocalInput(at) : null,
+      list_id: listChoices.some((l) => l.id === listId) ? listId : undefined,
     };
     await run(mode, async () => {
       const saved = postId ? await updatePost(postId, input) : await createPost(input);
@@ -161,6 +167,9 @@ export function PostEditor({ id }: { id?: string }) {
     else if (!ok) askRef.current?.focus();
   }
 
+  const inLists = post && !isFailure(post) ? post.lists : [];
+  // Lists this set's post can join; one it is already in is left out, since sending it would move the post to the end.
+  const listChoices = lists.filter((l) => fitsList(l, setId) && !inLists.some((x) => x.id === l.id));
   const editable = !status || status === "draft" || status === "scheduled";
   const count = graphemes(body);
   const over = count > MAX_GRAPHEMES;
@@ -315,6 +324,22 @@ export function PostEditor({ id }: { id?: string }) {
               </select>
               <p id="post-set-note" className="hint">
                 The post goes to every Bluesky account in this set.
+              </p>
+            </div>
+            <div className="grid gap-1.5">
+              <label htmlFor="post-list" className="label">
+                List
+              </label>
+              <select id="post-list" className="field" value={listChoices.some((l) => l.id === listId) ? listId : ""} onChange={(e) => setListId(e.target.value)} aria-describedby="post-list-note">
+                <option value="">No list</option>
+                {listChoices.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+              <p id="post-list-note" className="hint">
+                {inLists.length > 0 ? `Now ${inLists.map(partLabel).join(", ")}. ` : ""}A list you pick adds the post as its last part.
               </p>
             </div>
             <div className="grid gap-1.5">

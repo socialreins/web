@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { Failure } from "@/lib/auth";
 import { listConnections } from "@/lib/connections";
+import { partLabel } from "@/lib/lists";
 import { listPosts, monthRange, monthWeeks, postDay, sameDay, type Post, type PostStatus } from "@/lib/posts";
 import { listSets, type SocialSet } from "@/lib/sets";
 import { PlatformIcon, platforms } from "@/components/platform-icons";
@@ -35,7 +36,7 @@ export const statusName: Record<PostStatus, string> = {
 };
 
 const time = (d: Date) => d.toLocaleTimeString(undefined, { timeStyle: "short" });
-const snippet = (p: Post) => (p.body.trim() ? p.body.trim().slice(0, 60) + (p.body.trim().length > 60 ? "..." : "") : "(images only)");
+export const snippet = (p: Post) => (p.body.trim() ? p.body.trim().slice(0, 60) + (p.body.trim().length > 60 ? "..." : "") : "(images only)");
 const bluesky = platforms.find((p) => p.id === "bluesky")!;
 const legend: PostStatus[] = ["scheduled", "queued", "published", "failed", "deleted"];
 
@@ -75,6 +76,7 @@ function PostChip({ post: p }: { post: Post }) {
   return (
     <li className="tone flex min-w-0 items-center rounded-md text-xs" data-status={p.status}>
       <Link href={`/app/posts/${p.id}`} className="min-w-0 flex-1 truncate rounded-md px-1.5 py-1 hover:underline">
+        {p.lists.length > 0 && <span className="block truncate font-bold">{p.lists.map(partLabel).join(", ")}</span>}
         <strong>{time(postDay(p)!)}</strong> {snippet(p)}
       </Link>
       <span className="sr-only">{statusName[p.status]}</span>
@@ -280,6 +282,7 @@ export function Posts() {
                 <Link href={`/app/posts/${p.id}`} className="font-bold text-ink after:absolute after:inset-0 after:rounded-2xl">
                   {snippet(p)}
                 </Link>
+                {p.lists.length > 0 && <p className="text-sm font-bold">{p.lists.map(partLabel).join(", ")}</p>}
                 <p className="text-sm text-ink-soft">
                   {setName(p.social_set_id) ? `${setName(p.social_set_id)}. ` : ""}Saved{" "}
                   {new Date(p.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}.
