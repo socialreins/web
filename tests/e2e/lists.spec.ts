@@ -58,19 +58,20 @@ test("creates, renames and deletes a list", async ({ page }) => {
       sent = route.request().postDataJSON();
       return route.fulfill({ status: 201, json: { ...list({ social_set_id: "s1" }), items: [] } });
     }
-    return route.fulfill({ json: [] });
+    return route.fulfill({ json: [list({ id: "l0", name: "Alpha" })] });
   });
+  await page.route(/\/v1\/lists\/l0$/, (route) => route.fulfill({ status: 204 }));
   await page.route(/\/v1\/lists\/l1$/, (route) =>
     route.request().method() === "DELETE"
       ? route.fulfill({ status: 204 })
       : route.fulfill({ json: { ...list({ social_set_id: "s1", name: "Tips" }), items: [] } }),
   );
   await page.goto("/app/lists");
-  await expect(page.getByText("No lists yet")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Alpha" })).toBeVisible();
   await page.getByLabel("New list name").fill("Series");
   await page.getByLabel("Set").selectOption("s1");
   await page.getByRole("button", { name: "Create list" }).click();
-  await expect(page.getByRole("status")).toHaveText("Created Series.");
+  await expect(page.getByText("Created Series.")).toBeVisible();
   expect(sent).toEqual({ name: "Series", social_set_id: "s1" });
   await expect(page.getByRole("link", { name: "Series" })).toHaveAttribute("href", "/app/lists/l1");
   await expect(page.getByText("Clients", { exact: true }).last()).toBeVisible();
@@ -79,12 +80,21 @@ test("creates, renames and deletes a list", async ({ page }) => {
   await page.getByLabel("New name for Series").fill("Tips");
   await page.getByRole("button", { name: "Save name" }).click();
   await expect(page.getByRole("link", { name: "Tips" })).toBeVisible();
+  await expect(page.getByText("Renamed to Tips.")).toBeAttached();
+  await expect(page.getByRole("button", { name: "Rename Tips" })).toBeFocused();
+
+  // Deleting moves focus to the next list, or to the name field after the last one.
+  await page.getByRole("button", { name: "Delete Alpha" }).click();
+  await page.getByRole("button", { name: "Yes, delete" }).click();
+  await expect(page.getByRole("link", { name: "Alpha" })).toBeHidden();
+  await expect(page.getByRole("link", { name: "Tips" })).toBeFocused();
 
   await page.getByRole("button", { name: "Delete Tips" }).click();
   await expect(page.getByRole("button", { name: "Yes, delete" })).toBeFocused();
   await page.getByRole("button", { name: "Yes, delete" }).click();
-  await expect(page.getByRole("status")).toHaveText("Deleted Tips. Its posts stay.");
+  await expect(page.getByText("Deleted Tips. Its posts stay.")).toBeAttached();
   await expect(page.getByRole("link", { name: "Tips" })).toBeHidden();
+  await expect(page.getByLabel("New list name")).toBeFocused();
 });
 
 test("adds, reorders and removes posts in a list", async ({ page }) => {
@@ -134,10 +144,15 @@ test("adds, reorders and removes posts in a list", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Move Part 1 down" })).toBeFocused();
 
   await page.getByRole("button", { name: "Remove Part 1 from the list" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Removed from the list. The post stays." })).toBeVisible();
+  await expect(page.getByText("Removed from the list. The post stays.")).toBeAttached();
   await expect(items).toHaveCount(1);
   await expect(items.nth(0)).toContainText("Part 1");
   await expect(items.nth(0)).toContainText("First video");
+  // Focus goes to the next post's Remove, then to Add post once the list is empty.
+  await expect(page.getByRole("button", { name: "Remove Part 1 from the list" })).toBeFocused();
+  await page.getByRole("button", { name: "Remove Part 1 from the list" }).click();
+  await expect(page.getByText("No posts in this list yet")).toBeVisible();
+  await expect(page.getByLabel("Add post")).toBeFocused();
 });
 
 test("the calendar and phone list show Part N of a list", async ({ page }) => {
@@ -178,4 +193,23 @@ test("the post editor puts a new post in a list", async ({ page }) => {
   expect(sent.list_id).toBe("l1");
   await expect(page.getByText("Now Part 1 · Series.")).toBeVisible();
   await expect(select).toHaveValue("");
+});
+
+test("a move refused as stale reloads the list", async ({ page }) => {
+  await brain(page);
+  const a = post("p1", { body: "First video" });
+  const b = post("p2", { body: "Second video" });
+  let gets = 0;
+  await page.route(/\/v1\/posts(\?.*)?$/, (route) => route.fulfill({ json: [a, b] }));
+  await page.route(/\/v1\/lists\/l1$/, (route) => {
+    gets += 1;
+    const order = gets === 1 ? [a, b] : [b, a];
+    return route.fulfill({ json: { ...list(), items: order.map((p, i) => ({ post_id: p.id, position: i + 1, post: p })) } });
+  });
+  await page.route(/\/v1\/lists\/l1\/order$/, (route) => route.fulfill({ status: 422, json: { error: "invalid_order" } }));
+  await page.goto("/app/lists/l1");
+  await page.getByRole("button", { name: "Move Part 2 up" }).click();
+  await expect(page.getByText("The list changed elsewhere, so it was reloaded.", { exact: false })).toBeVisible();
+  const items = page.getByRole("list", { name: "Posts in Series" }).getByRole("listitem");
+  await expect(items.nth(0)).toContainText("Second video");
 });

@@ -30,7 +30,7 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
 export const listMessages: Partial<Record<Failure, ReactNode>> = {
   invalid_set: "That set no longer exists, or the post is in another set than the list.",
   invalid_post: "That post can't go in a list. Reload to see the latest.",
-  invalid_order: "The list changed elsewhere. Reload and try again.",
+  invalid_order: "The list changed elsewhere, so it was reloaded. Try the move again.",
   not_found: "That list is no longer there. Reload the page to see the latest.",
 };
 
@@ -55,6 +55,10 @@ export function Lists() {
   const { busy, problem, failedKey, done, run } = useAction();
   const openRef = useRef<HTMLInputElement | HTMLButtonElement | null>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const links = useRef(new Map<string, HTMLAnchorElement>());
+  const nameRef = useRef<HTMLInputElement>(null);
+  // Rename and delete are announced here rather than in Status, which would take focus.
+  const [note, setNote] = useState("");
 
   useEffect(() => {
     listLists().then(setLists);
@@ -87,20 +91,28 @@ export function Lists() {
   async function onRename(e: FormEvent<HTMLFormElement>, l: PostList) {
     e.preventDefault();
     const ok = await run("rename", () => renameList(l.id, newName), (r) => {
-      replace(r);
-      setOpen(null);
-      return `Renamed to ${r.name}.`;
+      flushSync(() => {
+        replace(r);
+        setOpen(null);
+      });
+      setNote(`Renamed to ${r.name}.`);
     });
-    if (!ok) openRef.current?.focus();
+    if (ok) buttons.current.get(`rename:${l.id}`)?.focus();
+    else openRef.current?.focus();
   }
 
   async function onDelete(l: PostList) {
+    const all = Array.isArray(lists) ? lists : [];
+    const next = all[all.findIndex((x) => x.id === l.id) + 1];
     const ok = await run("delete", () => deleteList(l.id), () => {
-      setLists((ls) => (Array.isArray(ls) ? ls.filter((x) => x.id !== l.id) : ls));
-      setOpen(null);
-      return `Deleted ${l.name}. Its posts stay.`;
+      flushSync(() => {
+        setLists((ls) => (Array.isArray(ls) ? ls.filter((x) => x.id !== l.id) : ls));
+        setOpen(null);
+      });
+      setNote(`Deleted ${l.name}. Its posts stay.`);
     });
-    if (!ok) openRef.current?.focus();
+    if (ok) (next ? links.current.get(next.id) : nameRef.current)?.focus();
+    else openRef.current?.focus();
   }
 
   const keep = (key: string) => (el: HTMLButtonElement | null) => {
@@ -121,6 +133,7 @@ export function Lists() {
         <label className="grid min-w-0 flex-1 basis-56 gap-1.5">
           <span className="label">New list name</span>
           <input
+            ref={nameRef}
             className="field"
             required
             maxLength={60}
@@ -146,6 +159,9 @@ export function Lists() {
         </button>
       </form>
       <Status problem={problem} done={done} overrides={listMessages} />
+      <p role="status" className="sr-only">
+        {note}
+      </p>
       {lists === null ? (
         <div role="status" className="h-40 rounded-2xl bg-ink/5 motion-safe:animate-pulse">
           <span className="sr-only">Loading lists...</span>
@@ -165,7 +181,13 @@ export function Lists() {
               </span>
               <div className="grid min-w-0 flex-1 basis-64 gap-2">
                 <div>
-                  <Link href={`/app/lists/${l.id}`} className="font-bold hover:underline">
+                  <Link
+                    ref={(el) => {
+                      if (el) links.current.set(l.id, el);
+                      else links.current.delete(l.id);
+                    }}
+                    href={`/app/lists/${l.id}`}
+                    className="font-bold hover:underline">
                     {l.name}
                   </Link>
                   <p className="text-sm text-ink-soft">{setLabel(l, sets)}</p>
@@ -218,11 +240,12 @@ export function ListView({ id }: { id: string }) {
   const [list, setList] = useState<ListDetail | Failure | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [adding, setAdding] = useState("");
-  // Moves are announced here rather than in Status, which would take focus off the move buttons.
-  const [moveNote, setMoveNote] = useState("");
+  // Moves and removals are announced here rather than in Status, which would take focus.
+  const [note, setNote] = useState("");
   const sets = useSets();
   const { busy, problem, done, run } = useAction();
   const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const addRef = useRef<HTMLSelectElement>(null);
   const setId = list && !isFailure(list) ? list.social_set_id : undefined;
 
   useEffect(() => {
@@ -249,20 +272,29 @@ export function ListView({ id }: { id: string }) {
   // Keeps focus on the moved post's button, or its other move button once it reaches an end.
   async function move(from: number, by: -1 | 1) {
     const postId = ids[from]!;
-    const ok = await run("move", () => reorderList(l.id, moved(ids, from, by)), (r) => {
+    const call = async () => {
+      const r = await reorderList(l.id, moved(ids, from, by));
+      if (r === "invalid_order") getList(l.id).then((x) => !isFailure(x) && setList(x));
+      return r;
+    };
+    const ok = await run("move", call, (r) => {
       flushSync(() => setList(r));
-      setMoveNote(`Moved to Part ${r.items.findIndex((i) => i.post_id === postId) + 1}.`);
+      setNote(`Moved to Part ${r.items.findIndex((i) => i.post_id === postId) + 1}.`);
     });
     if (!ok) return;
     const same = buttons.current.get(`${by}:${postId}`);
     (same && !same.disabled ? same : buttons.current.get(`${-by}:${postId}`))?.focus();
   }
 
-  async function remove(postId: string) {
-    await run("remove", () => removeFromList(l.id, postId), () => {
-      setList({ ...l, items: l.items.filter((i) => i.post_id !== postId).map((i, n) => ({ ...i, position: n + 1 })) });
-      return "Removed from the list. The post stays.";
+  // Focus goes to the next post's Remove, else the previous one's, else Add post.
+  async function remove(at: number) {
+    const postId = ids[at]!;
+    const after = ids[at + 1] ?? ids[at - 1];
+    const ok = await run("remove", () => removeFromList(l.id, postId), () => {
+      flushSync(() => setList({ ...l, items: l.items.filter((i) => i.post_id !== postId).map((i, n) => ({ ...i, position: n + 1 })) }));
+      setNote("Removed from the list. The post stays.");
     });
+    if (ok) (after ? buttons.current.get(`remove:${after}`) : addRef.current)?.focus();
   }
 
   function onAdd(e: FormEvent<HTMLFormElement>) {
@@ -291,7 +323,7 @@ export function ListView({ id }: { id: string }) {
         </div>
         <Status problem={problem} done={done} overrides={listMessages} />
         <p role="status" className="sr-only">
-          {moveNote}
+          {note}
         </p>
         {l.items.length === 0 ? (
           <p className="card p-5 text-ink-soft">No posts in this list yet. Add one below.</p>
@@ -326,7 +358,14 @@ export function ListView({ id }: { id: string }) {
                     >
                       Move down
                     </button>
-                    <button type="button" className="btn btn-quiet btn-danger btn-sm" aria-label={`Remove ${name} from the list`} disabled={busy !== null} onClick={() => remove(p.id)}>
+                    <button
+                      ref={keep(`remove:${p.id}`)}
+                      type="button"
+                      className="btn btn-quiet btn-danger btn-sm"
+                      aria-label={`Remove ${name} from the list`}
+                      disabled={busy !== null}
+                      onClick={() => remove(i)}
+                    >
                       Remove
                     </button>
                   </div>
@@ -339,7 +378,7 @@ export function ListView({ id }: { id: string }) {
       <form onSubmit={onAdd} className="card flex flex-wrap items-end gap-3 p-5">
         <label className="grid min-w-0 flex-1 basis-56 gap-1.5">
           <span className="label">Add post</span>
-          <select className="field" value={adding} onChange={(e) => setAdding(e.target.value)}>
+          <select ref={addRef} className="field" value={adding} onChange={(e) => setAdding(e.target.value)}>
             <option value="">{addable.length ? "Pick a post" : "No other posts to add"}</option>
             {addable.map((p) => (
               <option key={p.id} value={p.id}>
