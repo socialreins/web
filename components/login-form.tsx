@@ -129,6 +129,24 @@ export function LoginForm({ linkError, next = null }: { linkError: string | null
           {Object.hasOwn(linkErrors, linkError) ? linkErrors[linkError] : unknownLinkError}
         </p>
       )}
+      {passkeys && (
+        <div className="grid gap-2">
+          <button type="button" className="btn btn-primary h-11 w-full" disabled={busy} onClick={onPasskey}>
+            {passkey === "pending" ? "Waiting for your passkey..." : "Sign in with a passkey"}
+          </button>
+          {passkeyFailed && (
+            // Cancelling is the person's own choice, so it is a quiet status, not an alert.
+            <p role={passkey === "cancelled" ? "status" : "alert"} className="waitlist-error">
+              {passkeyFailures[passkey] ?? failures.error}
+            </p>
+          )}
+          <p className="flex items-center gap-3 text-sm text-ink-soft">
+            <span aria-hidden="true" className="h-px flex-1 bg-ink/15" />
+            or
+            <span aria-hidden="true" className="h-px flex-1 bg-ink/15" />
+          </p>
+        </div>
+      )}
       {google && (
         <>
           <a
@@ -170,19 +188,6 @@ export function LoginForm({ linkError, next = null }: { linkError: string | null
           {failed ? failures[status] : ""}
         </p>
       </form>
-      {passkeys && (
-        <div className="grid gap-2 border-t border-ink/10 pt-5">
-          <button type="button" className={linkButton} disabled={busy} onClick={onPasskey}>
-            {passkey === "pending" ? "Waiting for your passkey..." : "Sign in with a passkey"}
-          </button>
-          {passkeyFailed && (
-            // Cancelling is the person's own choice, so it is a quiet status, not an alert.
-            <p role={passkey === "cancelled" ? "status" : "alert"} className="waitlist-error">
-              {passkeyFailures[passkey] ?? failures.error}
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
