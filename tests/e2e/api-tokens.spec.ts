@@ -160,7 +160,7 @@ test("a member sees who manages tokens", async ({ page }) => {
     return route.fallback();
   });
   await page.goto("/app/api-tokens");
-  await expect(page.getByText("Only team owners and admins can manage API tokens.")).toBeVisible();
+  await expect(page.getByText("Only team owners and admins can manage API tokens and the webhook.")).toBeVisible();
   await expect(page.getByLabel("Token name")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Revoke/ })).toHaveCount(0);
   expect(listed).toBe(false);

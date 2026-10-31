@@ -8,6 +8,7 @@ import { createToken, listTokens, revokeToken, type ApiToken } from "@/lib/api-t
 import { listSets, type SocialSet } from "@/lib/sets";
 import { manages } from "@/lib/teams";
 import { apiUrl } from "@/lib/waitlist";
+import { WebhookSection } from "@/components/webhook";
 import { isFailure, linkButton, problemText, Status, useAction } from "@/components/team-ui";
 
 const heading = "font-display text-xl font-extrabold tracking-tight";
@@ -26,8 +27,13 @@ const overrides = {
 
 export function ApiTokens() {
   const { user } = useSession();
-  if (!manages(user.current_team.role)) return <p className="text-ink-soft">Only team owners and admins can manage API tokens.</p>;
-  return <TokensPage />;
+  if (!manages(user.current_team.role)) return <p className="text-ink-soft">Only team owners and admins can manage API tokens and the webhook.</p>;
+  return (
+    <>
+      <TokensPage />
+      <WebhookSection />
+    </>
+  );
 }
 
 function TokensPage() {
