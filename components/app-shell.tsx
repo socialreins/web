@@ -27,6 +27,7 @@ const nav: { href: string; label: string; icon: IconName }[] = [
   { href: "/app/connections", label: "Accounts", icon: "accounts" },
   { href: "/app/sets", label: "Sets", icon: "sets" },
   { href: "/app/team", label: "Team", icon: "team" },
+  { href: "/app/api-tokens", label: "API tokens", icon: "key" },
   { href: "/app/security", label: "Security", icon: "security" },
 ];
 
