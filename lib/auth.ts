@@ -106,6 +106,9 @@ const codes = [
   "too_many_automations",
   "invalid_expiry",
   "too_many_tokens",
+  "invalid_post",
+  "invalid_order",
+  "invalid_position",
 ] as const;
 export type Failure = (typeof codes)[number] | "rate_limited" | "signed_out" | "timeout" | "error";
 export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };

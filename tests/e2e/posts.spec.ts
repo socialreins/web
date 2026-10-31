@@ -41,6 +41,7 @@ const post = (id: string, extra: Record<string, unknown> = {}) => ({
   created_at: "2026-11-01T10:00:00Z",
   updated_at: "2026-11-01T10:00:00Z",
   targets: [] as Record<string, unknown>[],
+  lists: [] as { id: string; name: string; position: number }[],
   ...extra,
 });
 const target = (extra: Record<string, unknown> = {}) => ({
