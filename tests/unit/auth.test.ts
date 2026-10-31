@@ -19,6 +19,13 @@ describe("requestLink", () => {
     expect(JSON.parse(init.body)).toEqual({ email: "a@b.co" });
   });
 
+  it("sends the Turnstile token when there is one", async () => {
+    const fetch = respond(202);
+    vi.stubGlobal("fetch", fetch);
+    await requestLink("a@b.co", "tok");
+    expect(JSON.parse(fetch.mock.calls[0]![1].body)).toEqual({ email: "a@b.co", turnstile_token: "tok" });
+  });
+
   it.each([
     [422, "invalid"],
     [429, "rate_limited"],
@@ -26,6 +33,14 @@ describe("requestLink", () => {
   ])("maps %i to %s", async (status, result) => {
     vi.stubGlobal("fetch", respond(status));
     expect(await requestLink("a@b.co")).toBe(result);
+  });
+
+  it.each([
+    [422, "captcha_failed"],
+    [503, "captcha_unavailable"],
+  ])("maps %i %s to the captcha result", async (status, code) => {
+    vi.stubGlobal("fetch", respond(status, { error: code }));
+    expect(await requestLink("a@b.co", "tok")).toBe(code);
   });
 
   it("reports a network failure as error and a timeout as timeout", async () => {

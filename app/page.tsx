@@ -174,6 +174,9 @@ export default function Home() {
           <Link href="/terms" className={headerLink}>
             Terms
           </Link>
+          <Link href="/contact" className={headerLink}>
+            Contact
+          </Link>
           <a href={repo} className={headerLink}>
             SocialReins on GitHub
           </a>

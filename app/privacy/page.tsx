@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalPage, Mail } from "@/components/legal-page";
+import { ContactLink, LegalPage } from "@/components/legal-page";
 
 export const metadata: Metadata = { title: "Privacy Policy: SocialReins" };
 
@@ -9,7 +9,7 @@ export default function Privacy() {
     <LegalPage title="Privacy Policy">
       <p>
         SocialReins is an open-source social media manager made by Bytech. This page explains what the hosted service at
-        socialreins.com stores about you, why, and how to have it deleted. If you have a question, write to <Mail />.
+        socialreins.com stores about you, why, and how to have it deleted. If you have a question, <ContactLink />.
       </p>
 
       <h2>What we store</h2>
@@ -70,7 +70,7 @@ export default function Privacy() {
         <li>Disconnecting a social account deletes its stored token or app password at once.</li>
         <li>A deleted set can be restored for 30 days, then it is purged for good.</li>
         <li>
-          To delete your account and its data, email <Mail /> from the address on your account, and we will confirm
+          To delete your account and its data, <ContactLink /> using the email address on your account, and we will confirm
           when it is done.
         </li>
       </ul>

@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
+import { captchaMessages, useTurnstile } from "@/components/turnstile";
 import { getProviders, googleStartUrl, requestLink, safeNext, signInWithPasskey, type Failure, type LinkResult } from "@/lib/auth";
 
 const failures: Record<Exclude<LinkResult, "sent">, string> = {
+  ...captchaMessages,
   invalid: "That email address doesn't look right. Check it and try again.",
   rate_limited: "Too many attempts from this connection. Wait a minute, then try again.",
   timeout: "Sign-in took too long to answer. Try again in a moment.",
@@ -56,6 +58,8 @@ export function LoginFormWithError() {
 export function LoginForm({ linkError, next = null }: { linkError: string | null; next?: string | null }) {
   const router = useRouter();
   const [google, setGoogle] = useState(false);
+  const [siteKey, setSiteKey] = useState<string | null>();
+  const turnstile = useTurnstile(siteKey, "login");
   const [passkey, setPasskey] = useState<"idle" | "pending" | Failure | "cancelled">("idle");
   // Only known after hydration, so the server HTML never shows a button the browser can't use.
   const passkeys = useSyncExternalStore(noSubscribe, hasWebAuthn, () => false);
@@ -66,7 +70,10 @@ export function LoginForm({ linkError, next = null }: { linkError: string | null
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getProviders().then((p) => setGoogle(p.google));
+    getProviders().then((p) => {
+      setGoogle(p.google);
+      setSiteKey(p.turnstileSiteKey);
+    });
   }, []);
 
   useEffect(() => {
@@ -82,7 +89,9 @@ export function LoginForm({ linkError, next = null }: { linkError: string | null
       setStatus("sending");
       setPasskey("idle");
     });
-    setStatus(await requestLink(value));
+    const result = await requestLink(value, turnstile.token);
+    turnstile.reset();
+    setStatus(result);
   }
 
   async function onPasskey() {
@@ -178,7 +187,8 @@ export function LoginForm({ linkError, next = null }: { linkError: string | null
           aria-invalid={status === "invalid" || undefined}
           aria-describedby="login-note login-message"
         />
-        <button type="submit" disabled={busy}>
+        {turnstile.widget}
+        <button type="submit" disabled={busy || turnstile.missing}>
           {status === "sending" ? "Sending..." : "Email me a link"}
         </button>
         <p id="login-note" className="waitlist-note">
